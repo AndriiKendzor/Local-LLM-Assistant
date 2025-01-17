@@ -1,13 +1,21 @@
-from PIL import Image
+from main import *
+from LLM import *
 
-# Завантажуємо зображення
-img = Image.open("img/only_logo-removebg-preview.png")
+import datetime
+import os
 
-# Змінюємо розмір до 32x32
-img = img.resize((32, 32), Image.Resampling.LANCZOS)
 
-# Зберігаємо у форматі PNG
-img.save("img/only_logo_resized.png")
+def create_file_with_timestamp(info):
+    # Отримуємо поточну дату та час
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-# За потреби, зберігаємо у форматі ICO
-img.save("img/only_logo_resized.ico", format="ICO")
+    # Створюємо назву файлу
+    file_name = f"Conversation_{timestamp}.txt"
+
+    # Зберігаємо файл у поточній директорії
+    file_path = os.path.join(os.getcwd(), file_name)
+
+    # Відкриваємо файл для запису і записуємо інформацію
+    with open(file_path, 'w', encoding='utf-8') as file:
+        file.write(info)
+

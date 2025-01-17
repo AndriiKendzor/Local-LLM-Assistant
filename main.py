@@ -1,8 +1,11 @@
 from LLM import *
+from some_scripts import *
+
 import flet as ft
 import time
 import ctypes
-
+import atexit
+from functools import partial
 
 
 def main(page: ft.Page):
@@ -150,5 +153,7 @@ def main(page: ft.Page):
         )
     )
 
+
 if __name__ == "__main__":
     ft.app(target=main, view=ft.FLET_APP)
+
