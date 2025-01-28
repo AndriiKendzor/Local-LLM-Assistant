@@ -1,0 +1,7 @@
+
+User: hello
+AI: Hello! How can I assist you today?
+User: give me some information about open webui and how much thej ern
+AI: I'd be happy to help with that question. However, it seems like your question got cut off.
+
+To provide you with accurate information, could you please rephrase or complete your question regarding Open WebUI? What specific aspects of Open WebUI are you looking for information on (e.g., its purpose, features, pricing, etc.)?

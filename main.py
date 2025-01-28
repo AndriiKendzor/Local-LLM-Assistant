@@ -25,7 +25,7 @@ def get_installed_models():
         result = subprocess.run(["ollama", "list"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if result.returncode == 0:
             models = [line.strip() for line in result.stdout.split("\n") if line.strip()]
-            return []
+            return models
         else:
             print("Error getting models:", result.stderr)
             return []
@@ -34,254 +34,345 @@ def get_installed_models():
 
 
 def main(page: ft.Page):
+    # --- functions ---
+    def handle_resize(e):
+        if page.window_width < 800 and history_container.width > 50:
+            toggle_sidebar("close")
+        elif page.window_width >= 800 and history_container.width == 50:
+            toggle_sidebar("open")
+    # Логіка відкриття/закриття sidebar
+    def toggle_sidebar(action):
+        if action == "close":
+            settings_button.visible = False
+            chats_container.visible = False
+            line.visible = False
+            name_container.visible = False
+            search_chat_button.visible = False
+            new_chat_button.visible = False
+            animate_sidebar(200, 50)
+            logo_container.visible = False
+            close_button.visible = False
+            open_button.visible = True
+        elif action == "open":
+            animate_sidebar(50, 200)
+
+            settings_button.visible = True
+            chats_container.visible = True
+            line.visible = True
+            search_chat_button.visible = True
+            new_chat_button.visible = True
+            logo_container.visible = True
+            close_button.visible = True
+            open_button.visible = False
+            name_container.visible = True
+
+
+        history_container.update()
+
+    # Функція анімації зміни ширини
+    def animate_sidebar(start_width, end_width, step=10, delay=0.01):
+        current_width = start_width
+        while current_width != end_width:
+            if start_width < end_width:
+                current_width += step
+                if current_width > end_width:
+                    current_width = end_width
+            else:
+                current_width -= step
+                if current_width < end_width:
+                    current_width = end_width
+
+            history_container.width = current_width
+            history_container.update()
+            time.sleep(delay)
+
     # Отримуємо розміри екрану
     user32 = ctypes.windll.user32
 
-    def on_resize(e):
-        output_column.width = page.window_width  # Оновлюємо ширину колонки
-        output_column.update()  # Оновлюємо контейнер
-
     # --- page settings ----
-    page.window_width = 800
+    page.window_width = 1200
     page.window_height = 650
-    page.window_resizable = False  # Дозволяємо змінювати розмір вікна
+    page.window_resizable = True  # Дозволяємо змінювати розмір вікна
     page.window_maximized = False  # Не максимізуємо вікно при запуску
-    page.bgcolor = "black"
+    page.bgcolor = "#212121"
 
     # Обчислюємо позицію для центрування вікна
     page.window_left = (user32.GetSystemMetrics(0) - page.window_width) // 2
     page.window_top = (user32.GetSystemMetrics(1) - page.window_height) // 2
 
-    page.window_icon = "img/only_logo_resized.ico"
+    #page.favicon = "img/logo_beta.png"
     page.title = "Local AI Assistant"
-    page.vertical_alignment = ft.MainAxisAlignment.END
-    page.horizontal_alignment = ft.MainAxisAlignment.CENTER
-    page.on_resize = on_resize
-
-    # --- show error massage ---
-    def show_temporary_message(page, message, color="red", duration=3):
-        # Контейнер із повідомленням
-        error_message_container = ft.Container(
-            content=ft.Text(message, color=color, size=16),
-            padding=10,
-            bgcolor="#C0C0C0",
-            border_radius=10,
-            width=400,
-            height=50,
-            alignment=ft.alignment.center,
-            opacity=0,  # Початкова прозорість
-        )
-
-        # Позиціювання контейнера поверх усіх елементів
-        overlay_container = ft.Stack(
-            [
-                error_message_container
-            ],
-            expand=True,
-            alignment=ft.alignment.top_center
-        )
-        # Додаємо контейнер на сторінку
-        send_button.disabled = True
-        send_button.update()
-        txt_input.disabled = True
-        txt_input.update()
-        page.overlay.append(overlay_container)
-        page.update()
-
-        # Налаштування відступу для повідомлення
-        def position_message():
-            error_message_container.margin = ft.Margin(50, 50, 50, 50)  # Відступ зверху: 50px
-            error_message_container.update()
-
-        # Функція для анімації показу і видалення повідомлення
-        def animate_message():
-            position_message()  # Додаємо відступ
-            # Плавне з'явлення
-            for i in range(1, 11):  # Анімація в 10 кроків
-                error_message_container.opacity = i / 10
-                error_message_container.update()
-                time.sleep(0.05)
-
-        # Запускаємо анімацію у фоновому потоці
-        threading.Thread(target=animate_message, daemon=True).start()
-
-    # --- chose AI model ---
-    def dropdown_changed(dropdown):
-        if not is_ollama_installed():
-            show_temporary_message(page, "Ollama is not installed on your computer.")
-            return None
-
-        models = get_installed_models()
-        if not models:
-            show_temporary_message(page, "No models found on Ollama.")
-            return None
-
-        dropdown.options = [ft.dropdown.Option(model) for model in models]
-        # Якщо список опцій порожній
-        if len(dropdown.options) == 0:
-            dropdown.label = "No model selected"  # Змінюємо текст у полі
-            dropdown.value = None  # Знімаємо вибір
-        else:
-            # Встановлюємо першу опцію, якщо нічого не вибрано
-            if not dropdown.value:
-                dropdown.value = dropdown.options[0].key
-            dropdown.label = ""  # Оновлюємо текст у полі
-            print(dropdown.value)
-        dropdown.update()  # Оновлюємо вигляд Dropdown
-
-    # Ініціалізація Dropdown
-    select_model = ft.Dropdown(
-        options=[],
-        on_change=lambda e: dropdown_changed(e.control),
-        label="No model selected",
-        value=None,  # Початково немає вибору
-        width=200,
-        bgcolor="#101010",
-        border_radius=10,
-    )
-
+    page.vertical_alignment = ft.MainAxisAlignment.START
+    page.horizontal_alignment = ft.MainAxisAlignment.START
+    page.on_resize = handle_resize
+    # *** Chat side ***
     # --- header ----
-    header = ft.Container(
-        content=select_model,
+    header_row = ft.Row(
+        controls=[
+            ft.Container(width=30, height=30, bgcolor="red"),
+            ft.Container(width=30, height=30, bgcolor="blue"),
+            ft.Container(width=30, height=30, bgcolor="green"),
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,  # Проміжки навколо кожного елемента
         height=50,
-        bgcolor="black",
+    )
+    header_container = ft.Container(
+        content=header_row,
+        height=50,
+        padding=10,
         border_radius=10,
+        bgcolor="#171717",
+        alignment=ft.alignment.center,
     )
 
-    # --- column for massages ----
-    output_column = ft.Column(
-        expand=True,
-        spacing=10,
-        alignment=ft.MainAxisAlignment.END,
-        auto_scroll=True,
-        width=page.window_width
+    # --- chat ---
+    chat_column = ft.Column(
+        controls=[
+            ft.Container(width=30, height=30, bgcolor="red"),
+            ft.Container(width=30, height=30, bgcolor="blue"),
+            ft.Container(width=30, height=30, bgcolor="green"),
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,  # Проміжки навколо кожного елемента
     )
-    output_column.scroll = ft.ScrollMode.AUTO
-
-    # --- container to enable scroll to last massage ----
     chat_container = ft.Container(
-        content=output_column,
-        bgcolor="#000011",
+        content=chat_column,
+        expand=True,
+        padding=10,
+        border_radius=10,
+        bgcolor="#212121",
+        alignment=ft.alignment.center,
+    )
+
+    # --- input ---
+    txt_input = ft.TextField(
+        text_align=ft.TextAlign.LEFT,
+        filled=False,
+        height=30,
+        bgcolor="#101218",
+        color="white",
+        text_size=16,
+        expand=True,
+        border=ft.InputBorder.NONE,
+        focused_bgcolor="#101218",
+        focused_border_color=None,
+        cursor_color="white",
+        border_radius=20,
+        hint_text="Type something...",
+        hint_style=ft.TextStyle(
+            color="gray",
+            size=16,
+        ),
+    )
+
+    input_row = ft.Row(
+        controls=[
+            txt_input,
+        ],
+        alignment=ft.MainAxisAlignment.START,  # Проміжки навколо кожного елемента
+        expand=True,
+    )
+    input_txt_container = ft.Container(
+        content=input_row,
+        padding=ft.Padding(10, -5, 10, 5),
+        border_radius=20,
+        height=40,
+        bgcolor="#101218",
+        alignment=ft.alignment.center,
+        expand=True,
+        width=800,
+    )
+
+    input_container = ft.Container(
+        content=input_txt_container,
+        padding=5,
+        border_radius=10,
+        height=50,
+        bgcolor="#212121",
+        alignment=ft.alignment.center,
+    )
+
+
+
+    # --- input fild ---
+
+    # *** Nav bar side ***
+    # --- Logo and close ---
+    logo_container = ft.Container(
+        width=30,
+        height=30,
+        border_radius=30,
+        content=ft.Image(
+            src="img/logo_beta.png",  # URL або локальний шлях
+            fit=ft.ImageFit.CONTAIN  # Налаштування масштабування зображення
+        ),
+    )
+
+    close_button = ft.ElevatedButton(
+        icon=ft.icons.CLOSE,
+        icon_color=ft.colors.GREY,
+        text="Close",
+        width=30,
+        height=30,
+        bgcolor="black",
+        style=ft.ButtonStyle(
+            padding=3,
+            alignment=ft.alignment.center  # Центрування вмісту
+        ),
+        on_click=lambda e: toggle_sidebar("close")
+    )
+
+    open_button = ft.ElevatedButton(
+        icon=ft.icons.MENU,
+        icon_color=ft.colors.WHITE,
+        text="Open",
+        width=30,
+        height=30,
+        bgcolor="black",
+        visible=False,
+        style=ft.ButtonStyle(
+            padding=3,
+            alignment=ft.alignment.center  # Центрування вмісту
+        ),
+        on_click=lambda e: toggle_sidebar("open")
+    )
+
+    history_hed_row = ft.Row(
+        controls=[
+            logo_container,
+            close_button,
+            open_button,
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,  # Проміжки навколо кожного елемента
+        width=200
+    )
+
+    name_container = ft.Container(  #
+        content=ft.Text(
+            "AI Local Assistant",
+            color="white",
+            size=18,
+        ),
+        bgcolor="transparent",
+        alignment=ft.alignment.center_left,
+        padding=ft.Padding(0, 5, 0, 5),
+    )
+    new_chat_button = ft.ElevatedButton(
+        icon=ft.icons.ADD_BOX,
+        icon_color=ft.colors.WHITE,
+        text="New Chat",
+        bgcolor="black",
+        style=ft.ButtonStyle(
+            padding=ft.Padding(5, 5, 5, 5),
+            alignment=ft.alignment.center_left,  # Центрування вмісту
+            text_style=ft.TextStyle(  # Налаштування шрифту
+                size=16,
+                weight=ft.FontWeight.NORMAL,
+                color="white"
+            ),
+        ),
+        on_click=lambda e: print("new chat")
+    )
+    search_chat_button = ft.ElevatedButton(
+        icon=ft.icons.SEARCH,
+        icon_color=ft.colors.WHITE,
+        text="Search",
+        bgcolor="black",
+        style=ft.ButtonStyle(
+            padding=ft.Padding(5, 5, 5, 5),
+            alignment=ft.alignment.center_left,  # Центрування вмісту
+            text_style=ft.TextStyle(  # Налаштування шрифту
+                size=16,
+                weight=ft.FontWeight.NORMAL,
+                color="white"
+            ),
+        ),
+        on_click=lambda e: print("search chat")
+    )
+    settings_button = ft.ElevatedButton(
+        icon=ft.icons.SETTINGS,
+        icon_color=ft.colors.WHITE,
+        text="Settings",
+        bgcolor="black",
+        style=ft.ButtonStyle(
+            padding=ft.Padding(5, 5, 5, 5),
+            alignment=ft.alignment.center_left,  # Центрування вмісту
+            text_style=ft.TextStyle(  # Налаштування шрифту
+                size=16,
+                weight=ft.FontWeight.NORMAL,
+                color="white"
+            ),
+        ),
+        on_click=lambda e: print("settings")
+    )
+
+    line = ft.Divider(color="gray", thickness=1)
+
+    chats_column = ft.Column(
+        controls=[
+            ft.Container(width=30, height=30, bgcolor="red"),
+            ft.Container(width=30, height=30, bgcolor="blue"),
+            ft.Container(width=30, height=30, bgcolor="green"),
+        ],
+        alignment=ft.MainAxisAlignment.START,  # Проміжки навколо кожного елемента
+    )
+    chats_container = ft.Container(
+        content=chats_column,
+        expand=True,
+        padding=10,
+        border_radius=10,
+        bgcolor="black",
+        alignment=ft.alignment.center,
+    )
+
+    history_column = ft.Column(
+        controls=[
+            history_hed_row,
+            name_container,
+            new_chat_button,
+            search_chat_button,
+            line,
+            chats_container,
+            settings_button
+        ],
+        alignment=ft.MainAxisAlignment.START,  # Проміжки навколо кожного елемента
+        width=200
+    )
+    history_container = ft.Container(
+        content=history_column,
         padding=10,
         border_radius=10,
         expand=True,
-    )
-
-    # --- text input feeld ---
-    txt_input = ft.TextField(
-        text_align=ft.TextAlign.LEFT,
-        expand=1,
-        height=50,
-        bgcolor="#101010",
-        border_color="#101010",
-        border_width=2,
-        border_radius=20,
-        width=page.window_width * 0.85
-    )
-
-    def create_massage(text):
-        # Створюємо контейнер із текстом
-        text_width = min(10 * len(text) + 20, 560)
-        message_container = ft.Container(
-            content=ft.Text(
-                text,
-                color="white",
-                width=page.window_width * 0.7,
-                selectable=True,
-                max_lines=None,  # Дозволяє необмежену кількість рядків
-                no_wrap=False,  # Дозволяє перенесення тексту
-            ),
-            bgcolor="#202020",
-            padding=10,
-            border_radius=10,
-            width=text_width,
-            alignment=ft.alignment.center_right,
-        )
-        return message_container
-
-    # --- send button ---
-    send_button = ft.Container(
-        content=ft.Icon(name=ft.Icons.SEND, color="white", size=20),
-        width=50,
-        height=50,
+        width=200,
         bgcolor="black",
-        border=ft.border.all(1, "white"),
-        border_radius=50,
-        alignment=ft.alignment.Alignment(0, 0),
+        alignment=ft.alignment.center,
     )
-
-    # Функція для ховер-ефекту
-    def btn_on_hover(e):
-        if e.data == "true":
-            send_button.bgcolor = "#303030"
-        else:
-            send_button.bgcolor = "black"
-        send_button.update()
-    # Додаємо ховер-ефект, click
-    send_button.on_hover = btn_on_hover
-
-    def btn_on_click(e):
-        # Отримуємо текст із текстового поля
-        text = txt_input.value.strip()
-        if text:  # Якщо текст не порожній
-
-            send_button.disabled = True
-            send_button.update()
-            txt_input.value = "Creating response"  # Очищаємо текстове поле
-            txt_input.disabled = True
-            txt_input.update()
-
-            user_message_container = create_massage(f"You:\n{text}")
-            output_column.controls.append(
-                ft.Row(
-                    [user_message_container],
-                    alignment=ft.MainAxisAlignment.END,  # Вирівнювання контейнера справа
-                    vertical_alignment=ft.CrossAxisAlignment.END
-                )
-            )
-            output_column.update()
-
-
-            llm_text = call_llm(text)
-            llm_massage_container = create_massage(f"LLM:\n{llm_text}")
-            output_column.controls.append(
-                ft.Row(
-                    [llm_massage_container],
-                    alignment=ft.MainAxisAlignment.START,
-                    vertical_alignment=ft.CrossAxisAlignment.END
-                )
-            )
-            output_column.update()
-
-            txt_input.value = ""
-            txt_input.disabled = False
-            txt_input.update()
-            send_button.disabled = False
-            send_button.update()
-
-    send_button.on_click = btn_on_click
-    txt_input.on_submit = btn_on_click
-
     # --- page settings ----
     page.add(
-        header,
-        chat_container,
         ft.Row(
             [
-                txt_input,
-                send_button
+                ft.Column(
+                    [
+                        history_container
+                    ],
+                ),
+                ft.Column(
+                    [
+                        header_container,
+                        chat_container,
+                        input_container
+                    ],
+                    expand=True,
+                    spacing=0,
+                )
             ],
-            alignment=ft.MainAxisAlignment.CENTER,
-            spacing=10
+            expand=True,
+            spacing=10,
         )
     )
-    # update dropdown menu with models
-    dropdown_changed(select_model)
-
 
 if __name__ == "__main__":
     try:
-        ft.app(target=main, view=ft.FLET_APP)
+        ft.app(target=main, assets_dir="assets", view=ft.FLET_APP)
     except Exception as e:
         print(f"Error with page: {e}")
 

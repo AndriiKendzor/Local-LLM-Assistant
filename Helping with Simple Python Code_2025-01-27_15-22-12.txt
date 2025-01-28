@@ -1,0 +1,18 @@
+
+User: Hello howe are you
+AI: I'm doing well, thank you for asking. How can I assist you today?
+User: write me some code in python
+AI: I'd be happy to help with your Python code request! However, it seems like you haven't specified what kind of code you're looking for (e.g., a specific problem, algorithm, or functionality).
+
+To get started, can you please provide more information about what you need the code for? For example:
+
+* What do you want the code to accomplish?
+* Do you have any existing code that I can build upon?
+* Are there any specific libraries or frameworks you'd like me to use?
+
+Once I understand your requirements, I'll do my best to provide a well-written and readable Python code snippet for you!
+User: create the program wich will able to calculate 1 + 1
+AI: def add_one():
+    return 1 + 1
+
+print(add_one())

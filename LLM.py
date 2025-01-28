@@ -50,4 +50,4 @@ def create_file_with_timestamp(info):
             file.write(info)
 
 #save conversation
-atexit.register(lambda: create_file_with_timestamp(context))
+#atexit.register(lambda: create_file_with_timestamp(context))
