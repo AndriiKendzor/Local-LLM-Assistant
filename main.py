@@ -35,6 +35,7 @@ def get_installed_models():
 
 def main(page: ft.Page):
     # --- functions ---
+
     def handle_resize(e):
         if page.window_width < 800 and history_container.width > 50:
             toggle_sidebar("close")
@@ -43,12 +44,15 @@ def main(page: ft.Page):
     # Логіка відкриття/закриття sidebar
     def toggle_sidebar(action):
         if action == "close":
-            settings_button.visible = False
-            chats_container.visible = False
+            # settings_button.visible = False
+            settings_button.text = ""
+            chats_column.visible = False
             line.visible = False
             name_container.visible = False
-            search_chat_button.visible = False
-            new_chat_button.visible = False
+            # search_chat_button.visible = False
+            # new_chat_button.visible = False
+            new_chat_button.text = ""
+            search_chat_button.text = ""
             animate_sidebar(200, 50)
             logo_container.visible = False
             close_button.visible = False
@@ -56,11 +60,14 @@ def main(page: ft.Page):
         elif action == "open":
             animate_sidebar(50, 200)
 
-            settings_button.visible = True
-            chats_container.visible = True
+            # settings_button.visible = True
+            settings_button.text = "Settings"
+            chats_column.visible = True
             line.visible = True
-            search_chat_button.visible = True
-            new_chat_button.visible = True
+            # search_chat_button.visible = True
+            # new_chat_button.visible = True
+            new_chat_button.text = "Search"
+            search_chat_button.text = "New Chat"
             logo_container.visible = True
             close_button.visible = True
             open_button.visible = False
@@ -92,6 +99,9 @@ def main(page: ft.Page):
     # --- page settings ----
     page.window_width = 1200
     page.window_height = 650
+    page.padding=0
+    page.window_min_width = 800
+    page.window_min_height = 500
     page.window_resizable = True  # Дозволяємо змінювати розмір вікна
     page.window_maximized = False  # Не максимізуємо вікно при запуску
     page.bgcolor = "#212121"
@@ -105,6 +115,7 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.horizontal_alignment = ft.MainAxisAlignment.START
     page.on_resize = handle_resize
+
     # *** Chat side ***
     # --- header ----
     header_row = ft.Row(
@@ -144,10 +155,17 @@ def main(page: ft.Page):
     )
 
     # --- input ---
+    def adjust_height(e):
+        num_lines = txt_input.value.count("\n") + 1  # Кількість рядків у тексті
+        txt_input.height = min(40 + (num_lines - 1) * 30, 100)  # Максимум 3 рядки
+        txt_input_container.height = min(40 + (num_lines - 1) * 30, 100)
+        input_txt_container.height = txt_input.height + 10  # Оновлюємо контейнер
+        input_container.height = txt_input.height + 10  # Оновлюємо контейнер
+        page.update()
+
     txt_input = ft.TextField(
         text_align=ft.TextAlign.LEFT,
         filled=False,
-        height=30,
         bgcolor="#101218",
         color="white",
         text_size=16,
@@ -162,25 +180,60 @@ def main(page: ft.Page):
             color="gray",
             size=16,
         ),
+        multiline=True,  # Дозволяємо кілька рядків
+        max_lines=3,  # Обмежуємо 3 рядками
+        height=40,  # Початкова висота
+        on_change=adjust_height,  # Автоматично змінюємо висоту при зміні тексту
+    )
+    txt_input_container = ft.Container(
+        content=txt_input,
+        height=40,  # Початкова висота
+        border_radius=20,
+        padding=ft.Padding(5, 5, 5, 5),
+        bgcolor="#101218",
+        expand=True,
+        alignment=ft.alignment.center_left,
+        clip_behavior=ft.ClipBehavior.HARD_EDGE,  # Забезпечує обрізання тексту за межами
+    )
+    send_text_button = ft.ElevatedButton(
+        icon=ft.icons.ARROW_UPWARD,
+        icon_color=ft.colors.BLACK,
+        text="Send",
+        width=32,
+        height=35,
+        bgcolor="white",
+        style=ft.ButtonStyle(
+            padding=4,
+            alignment=ft.alignment.center
+        ),
+        on_click=lambda e: print("Send clicked"),
+    )
+    send_text_button_container = ft.Container(
+        content=send_text_button,
+        alignment=ft.alignment.center,
+        padding=ft.Padding(0, 15, 0, 0),
     )
 
     input_row = ft.Row(
         controls=[
-            txt_input,
+            txt_input_container,  # Обгорнутий input
+            send_text_button_container
         ],
-        alignment=ft.MainAxisAlignment.START,  # Проміжки навколо кожного елемента
+        alignment=ft.MainAxisAlignment.END,
         expand=True,
     )
+
     input_txt_container = ft.Container(
         content=input_row,
-        padding=ft.Padding(10, -5, 10, 5),
+        padding=ft.Padding(5, -10, 10, 5),
         border_radius=20,
-        height=40,
+        height=40,  # Початкова висота
         bgcolor="#101218",
         alignment=ft.alignment.center,
         expand=True,
         width=800,
     )
+    input_txt_container.scroll = ft.ScrollMode.AUTO
 
     input_container = ft.Container(
         content=input_txt_container,
@@ -256,13 +309,12 @@ def main(page: ft.Page):
         alignment=ft.alignment.center_left,
         padding=ft.Padding(0, 5, 0, 5),
     )
-    new_chat_button = ft.ElevatedButton(
+    new_chat_button = ft.TextButton(
         icon=ft.icons.ADD_BOX,
         icon_color=ft.colors.WHITE,
         text="New Chat",
-        bgcolor="black",
         style=ft.ButtonStyle(
-            padding=ft.Padding(5, 5, 5, 5),
+            padding=ft.Padding(3, 5, 5, 5),
             alignment=ft.alignment.center_left,  # Центрування вмісту
             text_style=ft.TextStyle(  # Налаштування шрифту
                 size=16,
@@ -272,13 +324,12 @@ def main(page: ft.Page):
         ),
         on_click=lambda e: print("new chat")
     )
-    search_chat_button = ft.ElevatedButton(
+    search_chat_button = ft.TextButton(
         icon=ft.icons.SEARCH,
         icon_color=ft.colors.WHITE,
         text="Search",
-        bgcolor="black",
         style=ft.ButtonStyle(
-            padding=ft.Padding(5, 5, 5, 5),
+            padding=ft.Padding(3, 5, 5, 5),
             alignment=ft.alignment.center_left,  # Центрування вмісту
             text_style=ft.TextStyle(  # Налаштування шрифту
                 size=16,
@@ -288,13 +339,12 @@ def main(page: ft.Page):
         ),
         on_click=lambda e: print("search chat")
     )
-    settings_button = ft.ElevatedButton(
+    settings_button = ft.TextButton(
         icon=ft.icons.SETTINGS,
         icon_color=ft.colors.WHITE,
         text="Settings",
-        bgcolor="black",
         style=ft.ButtonStyle(
-            padding=ft.Padding(5, 5, 5, 5),
+            padding=ft.Padding(3, 5, 5, 5),
             alignment=ft.alignment.center_left,  # Центрування вмісту
             text_style=ft.TextStyle(  # Налаштування шрифту
                 size=16,
