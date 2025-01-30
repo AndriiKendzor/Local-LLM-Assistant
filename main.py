@@ -143,9 +143,47 @@ def main(page: ft.Page):
 
     # *** Chat side ***
     # --- header ----
+    def dropdown_changed(e):
+        """Обробник події зміни вибору у Dropdown"""
+        print(f"Вибрано: {model_chose_dropdown.value}")  # Отримуємо вибране значення
+
+    def on_hover(e):
+        """Функція зміни кольору при наведенні миші"""
+        if e.data == "true":  # Якщо миша над елементом
+            dropdown_container.bgcolor = ft.colors.GREY_900  # Темно-сірий фон при наведенні
+        else:
+            dropdown_container.bgcolor = ft.colors.TRANSPARENT  # Прозорий фон у звичайному стані
+        dropdown_container.update()
+
+    model_chose_dropdown = ft.Dropdown(
+        label="",
+        value="option1",  # Вибір за замовчуванням
+        options=[
+            ft.dropdown.Option("option1", text="Option 1"),
+            ft.dropdown.Option("option2", text="Option 2"),
+            ft.dropdown.Option("option3", text="Option 3"),
+        ],
+        on_change=dropdown_changed,
+        width=200,  # Ширина Dropdown
+        border_radius=10,  # Закруглені краї
+        border_color="transparent",  # Приховуємо рамку
+        text_style=ft.TextStyle(
+            size=16,
+            color=ft.colors.GREY_500,  # Сірий колір тексту
+        ),
+    )
+
+    dropdown_container = ft.Container(
+        content=model_chose_dropdown,
+        padding=0,
+        border_radius=20,
+        bgcolor=ft.colors.TRANSPARENT,  # Початковий колір фону
+        on_hover=on_hover,  # Виклик функції при наведенні миші
+    )
+
     header_row = ft.Row(
         controls=[
-            ft.Container(width=30, height=30, bgcolor="red"),
+            dropdown_container,
             ft.Container(width=30, height=30, bgcolor="blue"),
             ft.Container(width=30, height=30, bgcolor="green"),
         ],
@@ -155,7 +193,7 @@ def main(page: ft.Page):
     header_container = ft.Container(
         content=header_row,
         height=50,
-        padding=10,
+        padding=ft.Padding(5, 3, 5, 3),
         border_radius=10,
         bgcolor="#171717",
         alignment=ft.alignment.center,
