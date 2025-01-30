@@ -35,12 +35,36 @@ def get_installed_models():
 
 def main(page: ft.Page):
     # --- functions ---
+    # change height of input feeld
+    def adjust_height(e):
+
+        if page.width >= history_container.width + 15 + 800:
+            width = 800
+        else:
+            width = page.width - history_container.width - 15
+
+        text = txt_input.value
+        num_lines = txt_input.value.count("\n") + 1
+
+        chars_per_line = max(int(width // (txt_input.text_size * 0.5)), 1)  # txt_input.text_size = 16
+        approx_lines = max(num_lines, (len(text) // chars_per_line) + 1)
+        total_lines = min(approx_lines, 3)
+
+        txt_input.height = min(40 + (total_lines - 1) * 30, 100)  # Максимум 3 рядки
+        txt_input_container.height = min(40 + (total_lines - 1) * 30, 100)
+        input_txt_container.height = txt_input.height + 10  # Оновлюємо контейнер
+        input_container.height = txt_input.height + 10  # Оновлюємо контейнер
+        page.update()
 
     def handle_resize(e):
+        # change the height of input feeld
+        adjust_height(e)
+        # close and open nav bar
         if page.window_width < 800 and history_container.width > 50:
             toggle_sidebar("close")
         elif page.window_width >= 800 and history_container.width == 50:
             toggle_sidebar("open")
+
     # Логіка відкриття/закриття sidebar
     def toggle_sidebar(action):
         if action == "close":
@@ -100,7 +124,7 @@ def main(page: ft.Page):
     page.window_width = 1200
     page.window_height = 650
     page.padding=0
-    page.window_min_width = 800
+    page.window_min_width = 500
     page.window_min_height = 500
     page.window_resizable = True  # Дозволяємо змінювати розмір вікна
     page.window_maximized = False  # Не максимізуємо вікно при запуску
@@ -115,6 +139,7 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.horizontal_alignment = ft.MainAxisAlignment.START
     page.on_resize = handle_resize
+
 
     # *** Chat side ***
     # --- header ----
@@ -155,14 +180,6 @@ def main(page: ft.Page):
     )
 
     # --- input ---
-    def adjust_height(e):
-        num_lines = txt_input.value.count("\n") + 1  # Кількість рядків у тексті
-        txt_input.height = min(40 + (num_lines - 1) * 30, 100)  # Максимум 3 рядки
-        txt_input_container.height = min(40 + (num_lines - 1) * 30, 100)
-        input_txt_container.height = txt_input.height + 10  # Оновлюємо контейнер
-        input_container.height = txt_input.height + 10  # Оновлюємо контейнер
-        page.update()
-
     txt_input = ft.TextField(
         text_align=ft.TextAlign.LEFT,
         filled=False,
@@ -189,7 +206,7 @@ def main(page: ft.Page):
         content=txt_input,
         height=40,  # Початкова висота
         border_radius=20,
-        padding=ft.Padding(5, 5, 5, 5),
+        padding=ft.Padding(10, -5, 5, 5),
         bgcolor="#101218",
         expand=True,
         alignment=ft.alignment.center_left,
@@ -199,8 +216,8 @@ def main(page: ft.Page):
         icon=ft.icons.ARROW_UPWARD,
         icon_color=ft.colors.BLACK,
         text="Send",
-        width=32,
-        height=35,
+        width=31,
+        height=30,
         bgcolor="white",
         style=ft.ButtonStyle(
             padding=4,
@@ -211,7 +228,7 @@ def main(page: ft.Page):
     send_text_button_container = ft.Container(
         content=send_text_button,
         alignment=ft.alignment.center,
-        padding=ft.Padding(0, 15, 0, 0),
+        padding=ft.Padding(0, 0, 0, 0),
     )
 
     input_row = ft.Row(
@@ -220,12 +237,13 @@ def main(page: ft.Page):
             send_text_button_container
         ],
         alignment=ft.MainAxisAlignment.END,
+        vertical_alignment=ft.CrossAxisAlignment.END,
         expand=True,
     )
 
     input_txt_container = ft.Container(
         content=input_row,
-        padding=ft.Padding(5, -10, 10, 5),
+        padding=ft.Padding(5, 5, 5, 5),
         border_radius=20,
         height=40,  # Початкова висота
         bgcolor="#101218",
@@ -316,10 +334,10 @@ def main(page: ft.Page):
         style=ft.ButtonStyle(
             padding=ft.Padding(3, 5, 5, 5),
             alignment=ft.alignment.center_left,  # Центрування вмісту
+            color=ft.colors.WHITE,
             text_style=ft.TextStyle(  # Налаштування шрифту
                 size=16,
                 weight=ft.FontWeight.NORMAL,
-                color="white"
             ),
         ),
         on_click=lambda e: print("new chat")
@@ -331,10 +349,10 @@ def main(page: ft.Page):
         style=ft.ButtonStyle(
             padding=ft.Padding(3, 5, 5, 5),
             alignment=ft.alignment.center_left,  # Центрування вмісту
+            color=ft.colors.WHITE,
             text_style=ft.TextStyle(  # Налаштування шрифту
                 size=16,
                 weight=ft.FontWeight.NORMAL,
-                color="white"
             ),
         ),
         on_click=lambda e: print("search chat")
@@ -345,11 +363,11 @@ def main(page: ft.Page):
         text="Settings",
         style=ft.ButtonStyle(
             padding=ft.Padding(3, 5, 5, 5),
+            color=ft.colors.WHITE,
             alignment=ft.alignment.center_left,  # Центрування вмісту
-            text_style=ft.TextStyle(  # Налаштування шрифту
+            text_style=ft.TextStyle(
                 size=16,
                 weight=ft.FontWeight.NORMAL,
-                color="white"
             ),
         ),
         on_click=lambda e: print("settings")
