@@ -90,8 +90,8 @@ def main(page: ft.Page):
             line.visible = True
             # search_chat_button.visible = True
             # new_chat_button.visible = True
-            new_chat_button.text = "Search"
-            search_chat_button.text = "New Chat"
+            new_chat_button.text = "New Chat"
+            search_chat_button.text = "Search"
             logo_container.visible = True
             close_button.visible = True
             open_button.visible = False
@@ -147,12 +147,12 @@ def main(page: ft.Page):
         """Обробник події зміни вибору у Dropdown"""
         print(f"Вибрано: {model_chose_dropdown.value}")  # Отримуємо вибране значення
 
+    # hover effect for dropdown
     def on_hover(e):
-        """Функція зміни кольору при наведенні миші"""
-        if e.data == "true":  # Якщо миша над елементом
-            dropdown_container.bgcolor = ft.colors.GREY_900  # Темно-сірий фон при наведенні
+        if e.data == "true":
+            dropdown_container.bgcolor = ft.colors.GREY_900  #
         else:
-            dropdown_container.bgcolor = ft.colors.TRANSPARENT  # Прозорий фон у звичайному стані
+            dropdown_container.bgcolor = ft.colors.TRANSPARENT
         dropdown_container.update()
 
     model_chose_dropdown = ft.Dropdown(
@@ -181,11 +181,44 @@ def main(page: ft.Page):
         on_hover=on_hover,  # Виклик функції при наведенні миші
     )
 
+    chat_name_container = ft.Container(
+        content=ft.Text(
+            "New chat of school meth subject",
+            color="white",
+            size=18,
+            max_lines=1,
+            no_wrap=True,
+            overflow=ft.TextOverflow.ELLIPSIS,
+        ),
+        bgcolor="transparent",
+        width=200,
+        alignment=ft.alignment.center,
+        padding=ft.Padding(0, 5, 0, 5),
+    )
+    add_knowledge_base = ft.TextButton(
+        icon=ft.icons.INSERT_DRIVE_FILE,
+        icon_color=ft.colors.GREY_500,  # Іконка білого кольору
+        text="Knowledge base",
+        width=200,
+        height=40,
+        style=ft.ButtonStyle(
+            padding=5,
+            alignment=ft.alignment.center,
+            side=ft.BorderSide(1, ft.colors.GREY_500),  # Білий бордер 1px
+            color=ft.colors.GREY_500,
+            text_style=ft.TextStyle(
+                size=16,  # Шрифт 16px
+            ),
+            shape=ft.RoundedRectangleBorder(radius=20),  # Закруглені краї
+        ),
+        on_click=lambda e: print("Knowledge base clicked"),
+    )
+
     header_row = ft.Row(
         controls=[
             dropdown_container,
-            ft.Container(width=30, height=30, bgcolor="blue"),
-            ft.Container(width=30, height=30, bgcolor="green"),
+            chat_name_container,
+            add_knowledge_base,
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,  # Проміжки навколо кожного елемента
         height=50,
