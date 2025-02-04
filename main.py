@@ -3,11 +3,15 @@ from LLM import *
 import subprocess
 import flet as ft
 import time
+
+import pyperclip  # Бібліотека для роботи з буфером обміну
+
 import threading
 import ctypes
 import atexit
 from functools import partial
 
+stop_response = False
 
 # Перевірка, чи встановлена програма Ollama
 def is_ollama_installed():
@@ -37,7 +41,6 @@ def main(page: ft.Page):
     # --- functions ---
     # change height of input feeld
     def adjust_height(e):
-
         if page.width >= history_container.width + 15 + 800:
             width = 800
         else:
@@ -60,9 +63,9 @@ def main(page: ft.Page):
         # change the height of input feeld
         adjust_height(e)
         # close and open nav bar
-        if page.window_width < 800 and history_container.width > 50:
+        if page.window_width < 840 and history_container.width > 50:
             toggle_sidebar("close")
-        elif page.window_width >= 800 and history_container.width == 50:
+        elif page.window_width >= 840 and history_container.width == 50:
             toggle_sidebar("open")
 
     # Логіка відкриття/закриття sidebar
@@ -117,6 +120,187 @@ def main(page: ft.Page):
             history_container.update()
             time.sleep(delay)
 
+    def create_buttons(llm_response, user_text):
+        def toggle_heart(e):
+            """Перемикає іконку сердечка"""
+            heart_button.icon = ft.icons.FAVORITE if heart_button.icon == ft.icons.FAVORITE_BORDER else ft.icons.FAVORITE
+            heart_button.update()
+
+        def copy_text(e):
+            pyperclip.copy(llm_response)  # Копіюємо текст у буфер обміну
+            copy_button.icon = ft.icons.CHECK
+            copy_button.update()
+            time.sleep(0.5)
+            copy_button.icon = ft.icons.CONTENT_COPY
+            copy_button.update()
+
+        def generate_again(e):
+            if len(chat_column.controls) >= 2:
+                del chat_column.controls[-2:]
+            chat_column.update()
+            create_massage(f"Just answer different way: {user_text} and ignore this: </>")
+
+
+        # Кнопка "сердечко" (заповнене/порожнє)
+        heart_button = ft.IconButton(
+            icon=ft.icons.FAVORITE_BORDER,  # Початкове значення: пусте сердечко
+            icon_color=ft.colors.GREY_500,
+            icon_size=13,
+            width=20,
+            height=20,
+            padding=0,
+            on_click=toggle_heart
+        )
+
+        # Кнопка "копіювати"
+        copy_button = ft.IconButton(
+            icon=ft.icons.CONTENT_COPY,  # Іконка копіювання
+            icon_color=ft.colors.GREY_500,
+            icon_size=13,
+            width=20,
+            height=20,
+            padding=0,
+            on_click=copy_text
+        )
+
+        # Кнопка "генерувати ще раз"
+        regenerate_button = ft.IconButton(
+            icon=ft.icons.REPLAY,  # Іконка повторного генератора
+            icon_color=ft.colors.GREY_500,
+            icon_size=13,
+            width=20,
+            height=20,
+            padding=0,
+            on_click=generate_again
+        )
+
+        # Рядок з кнопками
+        buttons_row = ft.Row(
+            [
+                heart_button,
+                copy_button,
+                regenerate_button
+            ],
+            alignment=ft.MainAxisAlignment.START,
+            vertical_alignment=ft.CrossAxisAlignment.START,
+        )
+        button_row_cont = ft.Container(
+            content=buttons_row,
+            padding=ft.Padding(50, -5, 0, 0)
+        )
+
+        return button_row_cont
+
+    def create_massage(text):
+        global stop_response
+
+        text = text.strip()
+        if text != "":
+            # stopping func
+            if txt_input.value == "Creating response":
+                stop_response = True
+                time.sleep(0.1)
+                stop_response = False
+                return
+
+            send_text_button.icon = ft.icons.STOP
+            send_text_button.update()
+            txt_input.value = "Creating response"
+            txt_input.disabled = True
+            adjust_height(None)
+            txt_input.update()
+
+            # creating user massage
+            text_width = min(10 * len(text) + 20, 560)
+
+            user_massage = ft.Container(
+                alignment=ft.alignment.center_right,
+                content=ft.Text(
+                    text,
+                    color="#E0E0E0",
+                    size=16,
+                    width=page.window_width * 0.7,
+                    selectable=True,
+                    max_lines=None,
+                    no_wrap=False,
+                ),
+                padding=10,
+                border_radius=10,
+                bgcolor="#2F2F2F",
+                width=text_width
+            )
+            if "</>" not in text:
+                chat_column.controls.append(
+                    ft.Row(
+                        [user_massage],
+                        alignment=ft.MainAxisAlignment.END,  # Вирівнювання контейнера справа
+                        vertical_alignment=ft.CrossAxisAlignment.END
+                    )
+                )
+                chat_column.update()
+
+            # creating llm massage
+            llm_response = call_llm(text)
+
+            llm_text = ft.Text(
+                "",
+                color="white",
+                size=16,
+                width=page.window_width * 0.7,
+                selectable=True,
+                max_lines=None,
+                no_wrap=False,
+            )
+
+            llm_response_cont = ft.Container(
+                alignment=ft.alignment.center_left,
+                content=llm_text,
+                padding=10,
+                border_radius=10,
+                bgcolor="transparent",
+                expand=True
+            )
+
+            chat_column.controls.append(
+                ft.Row(
+                    [
+                        logo_container2,
+                        llm_response_cont,
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    vertical_alignment=ft.CrossAxisAlignment.START
+                )
+            )
+            chat_column.update()
+
+            printed_text = ""  # copy only printed text
+            for word in llm_response:
+                if stop_response:
+                    break
+                llm_text.value += word + " ⚪"
+                llm_response_cont.update()
+                time.sleep(0.01)
+                llm_text.value = llm_text.value.replace(" ⚪", "")
+                llm_response_cont.update()
+                chat_column.update()
+                printed_text += word
+
+            buttons_row = create_buttons(printed_text, text)
+
+            chat_column.controls.append(
+                buttons_row
+            )
+            chat_column.update()
+
+            txt_input.value = ""
+            txt_input.disabled = False
+            txt_input.update()
+            send_text_button.icon = ft.icons.ARROW_UPWARD
+            send_text_button.update()
+
+        else:
+            pass
+
     # Отримуємо розміри екрану
     user32 = ctypes.windll.user32
 
@@ -124,8 +308,8 @@ def main(page: ft.Page):
     page.window_width = 1200
     page.window_height = 650
     page.padding=0
-    page.window_min_width = 500
-    page.window_min_height = 500
+    page.window_min_width = 690
+    page.window_min_height = 650
     page.window_resizable = True  # Дозволяємо змінювати розмір вікна
     page.window_maximized = False  # Не максимізуємо вікно при запуску
     page.bgcolor = "#212121"
@@ -135,11 +319,10 @@ def main(page: ft.Page):
     page.window_top = (user32.GetSystemMetrics(1) - page.window_height) // 2
 
     #page.favicon = "img/logo_beta.png"
-    page.title = "Local AI Assistant"
+    page.title = "AI Local Assistant"
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.horizontal_alignment = ft.MainAxisAlignment.START
     page.on_resize = handle_resize
-
 
     # *** Chat side ***
     # --- header ----
@@ -183,7 +366,7 @@ def main(page: ft.Page):
 
     chat_name_container = ft.Container(
         content=ft.Text(
-            "New chat of school meth subject",
+            "New chat",
             color="white",
             size=18,
             max_lines=1,
@@ -234,27 +417,29 @@ def main(page: ft.Page):
 
     # --- chat ---
     chat_column = ft.Column(
-        controls=[
-            ft.Container(width=30, height=30, bgcolor="red"),
-            ft.Container(width=30, height=30, bgcolor="blue"),
-            ft.Container(width=30, height=30, bgcolor="green"),
-        ],
-        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,  # Проміжки навколо кожного елемента
+        auto_scroll=True,
+        expand=True,
+        width=800,
+        alignment=ft.MainAxisAlignment.START,
     )
+
+    chat_column.scroll = ft.ScrollMode.AUTO
+
     chat_container = ft.Container(
         content=chat_column,
         expand=True,
-        padding=10,
+        padding=ft.Padding(10, 20, 10, 20),
         border_radius=10,
         bgcolor="#212121",
         alignment=ft.alignment.center,
     )
 
+
     # --- input ---
     txt_input = ft.TextField(
         text_align=ft.TextAlign.LEFT,
         filled=False,
-        bgcolor="#101218",
+        bgcolor="transparent",
         color="white",
         text_size=16,
         expand=True,
@@ -278,7 +463,7 @@ def main(page: ft.Page):
         height=40,  # Початкова висота
         border_radius=20,
         padding=ft.Padding(10, -5, 5, 5),
-        bgcolor="#101218",
+        bgcolor="transparent",
         expand=True,
         alignment=ft.alignment.center_left,
         clip_behavior=ft.ClipBehavior.HARD_EDGE,  # Забезпечує обрізання тексту за межами
@@ -294,7 +479,7 @@ def main(page: ft.Page):
             padding=4,
             alignment=ft.alignment.center
         ),
-        on_click=lambda e: print("Send clicked"),
+        on_click=lambda e: create_massage(txt_input.value),
     )
     send_text_button_container = ft.Container(
         content=send_text_button,
@@ -333,13 +518,21 @@ def main(page: ft.Page):
         alignment=ft.alignment.center,
     )
 
-
-
     # --- input fild ---
 
     # *** Nav bar side ***
     # --- Logo and close ---
     logo_container = ft.Container(
+        width=30,
+        height=30,
+        border_radius=30,
+        content=ft.Image(
+            src="img/logo_beta.png",  # URL або локальний шлях
+            fit=ft.ImageFit.CONTAIN  # Налаштування масштабування зображення
+        ),
+    )
+    # for chat
+    logo_container2 = ft.Container(
         width=30,
         height=30,
         border_radius=30,
