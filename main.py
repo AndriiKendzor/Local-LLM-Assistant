@@ -3,7 +3,7 @@ from LLM import *
 import subprocess
 import flet as ft
 import time
-
+import re
 import pyperclip  # Бібліотека для роботи з буфером обміну
 
 import threading
@@ -191,6 +191,20 @@ def main(page: ft.Page):
 
         return button_row_cont
 
+    # async def wait_animation(text_cont, stop_event):
+    #     while not stop_event.is_set():
+    #         for i in range(3):
+    #             if stop_event.is_set():
+    #                 break
+    #             text_cont.value += " ."
+    #             text_cont.update()
+    #             await asyncio.sleep(0.4)
+    #
+    #         text_cont.value = " "
+    #         text_cont.update()
+    #         await asyncio.sleep(0.5)
+
+
     def create_massage(text):
         global stop_response
 
@@ -242,14 +256,13 @@ def main(page: ft.Page):
             # creating llm massage
             llm_response = call_llm(text)
 
-            llm_text = ft.Text(
+            llm_text = ft.Markdown(
                 "",
-                color="white",
-                size=16,
-                width=page.window_width * 0.7,
                 selectable=True,
-                max_lines=None,
-                no_wrap=False,
+                width=page.window_width * 0.7,
+                extension_set="gitHubWeb",
+                code_theme="atom-one-dark",
+                on_tap_link=lambda e: page.launch_url(e.data),
             )
 
             llm_response_cont = ft.Container(
@@ -272,6 +285,9 @@ def main(page: ft.Page):
                 )
             )
             chat_column.update()
+
+
+
 
             printed_text = ""  # copy only printed text
             for word in llm_response:
@@ -323,6 +339,10 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.horizontal_alignment = ft.MainAxisAlignment.START
     page.on_resize = handle_resize
+
+    # page.theme = ft.Theme(
+    #     text_theme=ft.TextTheme(body_medium=ft.TextStyle(size=16, color="white"))
+    # )
 
     # *** Chat side ***
     # --- header ----
@@ -707,5 +727,4 @@ if __name__ == "__main__":
         ft.app(target=main, assets_dir="assets", view=ft.FLET_APP)
     except Exception as e:
         print(f"Error with page: {e}")
-
 
