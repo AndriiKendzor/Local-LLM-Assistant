@@ -19,7 +19,8 @@ Answer:
 
 context = ""
 
-model = OllamaLLM(model="llama3.2:latest")
+
+model = OllamaLLM(model=llm_model)
 prompt = ChatPromptTemplate.from_template(template)
 chain = prompt | model
 

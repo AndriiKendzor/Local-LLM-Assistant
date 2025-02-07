@@ -12,7 +12,7 @@ import atexit
 from functools import partial
 
 stop_response = False
-
+llm_model = ""
 # Перевірка, чи встановлена програма Ollama
 def is_ollama_installed():
     try:
@@ -38,6 +38,7 @@ def get_installed_models():
 
 
 def main(page: ft.Page):
+
     # --- functions ---
     # change height of input feeld
     def adjust_height(e):
@@ -256,6 +257,17 @@ def main(page: ft.Page):
             # creating llm massage
             llm_response = call_llm(text)
 
+            llm_mrkd_style = ft.MarkdownStyleSheet(
+                p_text_style=ft.TextStyle(size=16, color="white"),  # Стиль для параграфів
+                h1_text_style=ft.TextStyle(size=32, color="white", weight=ft.FontWeight.BOLD),  # Заголовок 1
+                h2_text_style=ft.TextStyle(size=28, color="white", weight=ft.FontWeight.W_600), # Заголовок 2
+                h3_text_style=ft.TextStyle(size=24, color="white", weight=ft.FontWeight.W_500), # Заголовок 3
+                code_text_style=ft.TextStyle(font_family="Courier New", size=14, color="lime"), # Стиль для коду
+                a_text_style=ft.TextStyle(color="cyan", decoration=ft.TextDecoration.UNDERLINE), # Стиль для посилань
+                strong_text_style=ft.TextStyle(weight=ft.FontWeight.BOLD),  # Жирний текст
+                em_text_style=ft.TextStyle(italic=True),  # Курсивний текст
+            )
+
             llm_text = ft.Markdown(
                 "",
                 selectable=True,
@@ -263,6 +275,7 @@ def main(page: ft.Page):
                 extension_set="gitHubWeb",
                 code_theme="atom-one-dark",
                 on_tap_link=lambda e: page.launch_url(e.data),
+                md_style_sheet=llm_mrkd_style,
             )
 
             llm_response_cont = ft.Container(
@@ -348,7 +361,17 @@ def main(page: ft.Page):
     # --- header ----
     def dropdown_changed(e):
         """Обробник події зміни вибору у Dropdown"""
-        print(f"Вибрано: {model_chose_dropdown.value}")  # Отримуємо вибране значення
+        global llm_model
+        llm_model = model_chose_dropdown.value
+
+    def get_models():
+        try:
+            result = subprocess.run(['ollama', 'list'], stdout=subprocess.PIPE, text=True)
+            lines = result.stdout.strip().split('\n')
+            models = [line.split()[0] for line in lines[1:] if line.strip()]
+            return models
+        except Exception as e:
+            return []
 
     # hover effect for dropdown
     def on_hover(e):
@@ -358,14 +381,12 @@ def main(page: ft.Page):
             dropdown_container.bgcolor = ft.colors.TRANSPARENT
         dropdown_container.update()
 
+    model_list = get_models()
+
     model_chose_dropdown = ft.Dropdown(
         label="",
-        value="option1",  # Вибір за замовчуванням
-        options=[
-            ft.dropdown.Option("option1", text="Option 1"),
-            ft.dropdown.Option("option2", text="Option 2"),
-            ft.dropdown.Option("option3", text="Option 3"),
-        ],
+        value=model_list[0],  # Вибір за замовчуванням
+        options=[ft.dropdown.Option(model) for model in model_list],
         on_change=dropdown_changed,
         width=200,  # Ширина Dropdown
         border_radius=10,  # Закруглені краї
