@@ -1,10 +1,12 @@
 import subprocess
 import flet as ft
 import time
+import re
 
 import pyperclip  # Бібліотека для роботи з буфером обміну
 import ctypes
 
+import ollama
 from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -58,17 +60,30 @@ def call_llm(text):
         "question": user_input
     }
 
-    # if "!img!:" in text:
-    #     if llm_model == "llava:latest":
-    #         img_path = r"C:\Users\USER\plans\Everyday to do list\1.08.png"
-    #         request_data["images"] = [img_path]
-    #         print("good")
-    #     else:
-    #         print("model not support image analysis")
+    # check if image is added
+    img_pattern = r"!img:\s*(.*?)!"  # Шаблон для пошуку посилання
+    img_match = re.search(img_pattern, text)
 
-    response = chain.invoke(request_data)
-    context += f"\nUser: {user_input}\nAI: {response}"
-    return response
+    if img_match:
+        img_path = img_match.group(1)
+        print(img_path)
+        try:
+            response = ollama.chat(
+                model="llava:latest",
+                messages=[
+                    {"role": "user", "content": user_input, "images": [img_path]}
+                ]
+            )
+            img_response = response["message"]["content"]
+            context += f"\nUser: {user_input}\nAI: {img_response}"
+            return img_response
+        except Exception as e:
+            img_response = "An error with image procesing"
+            return img_response
+    else:
+        response = chain.invoke(request_data)
+        context += f"\nUser: {user_input}\nAI: {response}"
+        return response
 
 def main(page: ft.Page):
     # --- functions ---
@@ -500,6 +515,21 @@ def main(page: ft.Page):
         width=800,
         alignment=ft.MainAxisAlignment.START,
     )
+
+    # chat_column.controls.append(
+    #     ft.Container(
+    #         content=ft.Text(
+    #             f"Use !img: C:/Example/path/img.png! to add image.",
+    #             color=ft.colors.GREY_500,
+    #             size=18,
+    #             no_wrap=True,
+    #             overflow=ft.TextOverflow.ELLIPSIS,
+    #         ),
+    #         expand=True,
+    #         bgcolor="transparent",
+    #         alignment=ft.alignment.center,
+    #     )
+    # )
 
     chat_column.scroll = ft.ScrollMode.AUTO
 
