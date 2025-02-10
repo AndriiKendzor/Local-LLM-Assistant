@@ -1,18 +1,13 @@
-from LLM import *
-
 import subprocess
 import flet as ft
 import time
-import re
+
 import pyperclip  # Бібліотека для роботи з буфером обміну
-
-import threading
 import ctypes
-import atexit
-from functools import partial
 
-stop_response = False
-llm_model = ""
+from langchain_ollama import OllamaLLM
+from langchain_core.prompts import ChatPromptTemplate
+
 # Перевірка, чи встановлена програма Ollama
 def is_ollama_installed():
     try:
@@ -24,21 +19,58 @@ def is_ollama_installed():
 
 
 # Отримуємо список доступних моделей
-def get_installed_models():
+def get_models():
     try:
-        result = subprocess.run(["ollama", "list"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode == 0:
-            models = [line.strip() for line in result.stdout.split("\n") if line.strip()]
-            return models
-        else:
-            print("Error getting models:", result.stderr)
-            return []
-    except FileNotFoundError:
+        result = subprocess.run(['ollama', 'list'], stdout=subprocess.PIPE, text=True)
+        lines = result.stdout.strip().split('\n')
+        models = [line.split()[0] for line in lines[1:] if line.strip()]
+        return models
+    except Exception as e:
         return []
 
+template = """
+Answer the question below.
+
+Here is the conversation history: {context}
+
+Question: {question}
+
+Answer:
+"""
+
+context = ""
+model_list = get_models()
+llm_model = model_list[0]
+
+model = OllamaLLM(model=llm_model)
+prompt = ChatPromptTemplate.from_template(template)
+chain = prompt | model
+
+stop_response = False
+
+def call_llm(text):
+    global context, llm_model, chain
+    print(f"Активна модель: {llm_model}")
+    user_input = text
+
+    request_data = {
+        "context": context,
+        "question": user_input
+    }
+
+    # if "!img!:" in text:
+    #     if llm_model == "llava:latest":
+    #         img_path = r"C:\Users\USER\plans\Everyday to do list\1.08.png"
+    #         request_data["images"] = [img_path]
+    #         print("good")
+    #     else:
+    #         print("model not support image analysis")
+
+    response = chain.invoke(request_data)
+    context += f"\nUser: {user_input}\nAI: {response}"
+    return response
 
 def main(page: ft.Page):
-
     # --- functions ---
     # change height of input feeld
     def adjust_height(e):
@@ -175,12 +207,23 @@ def main(page: ft.Page):
             on_click=generate_again
         )
 
+        llm_model_info = ft.Container(
+            content=ft.Text(
+                model_chose_dropdown.value,
+                color=ft.colors.GREY_500,
+                size=13,
+            ),
+            height=20,
+            padding=0,
+        )
+
         # Рядок з кнопками
         buttons_row = ft.Row(
             [
                 heart_button,
                 copy_button,
-                regenerate_button
+                regenerate_button,
+                llm_model_info
             ],
             alignment=ft.MainAxisAlignment.START,
             vertical_alignment=ft.CrossAxisAlignment.START,
@@ -361,17 +404,11 @@ def main(page: ft.Page):
     # --- header ----
     def dropdown_changed(e):
         """Обробник події зміни вибору у Dropdown"""
-        global llm_model
+        global llm_model, model, chain
         llm_model = model_chose_dropdown.value
 
-    def get_models():
-        try:
-            result = subprocess.run(['ollama', 'list'], stdout=subprocess.PIPE, text=True)
-            lines = result.stdout.strip().split('\n')
-            models = [line.split()[0] for line in lines[1:] if line.strip()]
-            return models
-        except Exception as e:
-            return []
+        model = OllamaLLM(model=llm_model)
+        chain = prompt | model
 
     # hover effect for dropdown
     def on_hover(e):
@@ -381,7 +418,7 @@ def main(page: ft.Page):
             dropdown_container.bgcolor = ft.colors.TRANSPARENT
         dropdown_container.update()
 
-    model_list = get_models()
+    global model_list
 
     model_chose_dropdown = ft.Dropdown(
         label="",
