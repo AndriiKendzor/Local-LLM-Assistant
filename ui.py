@@ -3,9 +3,74 @@ import time
 import pyperclip  # Бібліотека для роботи з буфером обміну
 import ctypes
 from langchain_ollama import OllamaLLM
-from llm import call_llm
+from llm import call_llm, is_ollama_installed, get_models
 
 def build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain):
+    # check if ollama is installed
+    ollama_installed = is_ollama_installed()
+    available_models = get_models()
+
+    # Якщо Ollama не встановлено або немає моделей, показуємо повідомлення про помилку
+    if not ollama_installed or not available_models:
+        error_message = "Ollama is not installed on your system."
+        if ollama_installed:
+            error_message = "No models are available. Please download a model using Ollama."
+
+        # Створюємо вікно з повідомленням про помилку
+        error_dialog = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Text(
+                        "Error",
+                        size=24,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.colors.RED,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    ft.Text(
+                        error_message,
+                        size=18,
+                        color=ft.colors.WHITE,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    ft.Text(
+                        "Please install Ollama and download at least one model to use this application.",
+                        size=16,
+                        color=ft.colors.GREY_400,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    ft.TextButton(
+                        text="Visit Ollama Website",
+                        icon=ft.icons.LINK,
+                        icon_color=ft.colors.BLUE,
+                        on_click=lambda e: page.launch_url("https://ollama.ai/"),
+                        style=ft.ButtonStyle(color=ft.colors.BLUE),
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=10,
+            ),
+            bgcolor=ft.colors.GREY_900,
+            padding=20,
+            border_radius=10,
+            width=400,
+            height=300,
+            alignment=ft.alignment.center,
+        )
+
+        # Відображаємо лише вікно з помилкою
+        page.add(
+            ft.Container(
+                content=error_dialog,
+                alignment=ft.alignment.center,
+                expand=True,
+                bgcolor="#212121",
+            )
+        )
+        # Повертаємо незмінені значення, оскільки інтерфейс недоступний
+        return context, model_list, llm_model, stop_response, model, prompt, chain
+
     # --- functions ---
     # change height of input feeld
     def adjust_height(e):
@@ -323,12 +388,13 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
     page.window_resizable = True  # Дозволяємо змінювати розмір вікна
     page.window_maximized = False  # Не максимізуємо вікно при запуску
     page.bgcolor = "#212121"
+    #page.favicon = "icons/icon-192.png"
+    #page.window_icon = "icons/logo_beta.ico"
 
     # Обчислюємо позицію для центрування вікна
     page.window_left = (user32.GetSystemMetrics(0) - page.window_width) // 2
     page.window_top = (user32.GetSystemMetrics(1) - page.window_height) // 2
 
-    #page.favicon = "img/logo_beta.png"
     page.title = "AI Local Assistant"
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.horizontal_alignment = ft.MainAxisAlignment.START
@@ -464,7 +530,83 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
         alignment=ft.alignment.center,
     )
 
+    # --- info button ---
+    def show_features_dialog(e):
+        # Список можливостей
+        features = [
+            "Chat with AI locally",
+            "Process images with !img: command",
+            "Copy responses to clipboard",
+            "Regenerate responses",
+            "Save conversation history",
+            "Switch between multiple models",
+        ]
 
+        # Створюємо список із можливостей
+        features_list = ft.Column(
+            controls=[
+                ft.Text(
+                    f"• {feature}",
+                    size=16,
+                    color=ft.colors.WHITE,
+                ) for feature in features
+            ],
+            spacing=10,
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.START,
+        )
+
+        # Створюємо діалогове вікно
+        dialog = ft.AlertDialog(
+            title=ft.Text(
+                "Features of AI Local Assistant",
+                size=20,
+                weight=ft.FontWeight.BOLD,
+                color=ft.colors.WHITE,
+                text_align=ft.TextAlign.CENTER,
+            ),
+            content=ft.Container(
+                content=features_list,
+                padding=10,
+                width=400,
+                height=300,
+            ),
+            actions=[
+                ft.TextButton(
+                    text="Close",
+                    on_click=lambda e: close_dialog(e),
+                    style=ft.ButtonStyle(color=ft.colors.BLUE),
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.CENTER,
+            bgcolor=ft.colors.GREY_900,
+        )
+
+        def close_dialog(e):
+            dialog.open = False
+            page.update()
+
+        # Відкриваємо діалогове вікно
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
+    info_button = ft.ElevatedButton(
+        content=ft.Icon(
+            ft.icons.HELP_OUTLINE,
+            color=ft.colors.WHITE,
+            size=20,
+        ),
+        on_click=lambda e: show_features_dialog(e),
+        style=ft.ButtonStyle(
+            shape=ft.CircleBorder(),
+            bgcolor="#212121",
+            padding=5,
+        ),
+        width=30,
+        height=30,
+    )
+    # --- info button ---
     # --- input ---
     txt_input = ft.TextField(
         text_align=ft.TextAlign.LEFT,
@@ -538,9 +680,17 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
         width=800,
     )
     input_txt_container.scroll = ft.ScrollMode.AUTO
-
+    input_row = ft.Row(
+        controls=[
+            input_txt_container,
+            info_button
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+        vertical_alignment=ft.CrossAxisAlignment.END,
+        width=850,
+    )
     input_container = ft.Container(
-        content=input_txt_container,
+        content=input_row,
         padding=5,
         border_radius=10,
         height=50,
@@ -549,7 +699,6 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
     )
 
     # --- input fild ---
-
     # *** Nav bar side ***
     # --- Logo and close ---
     logo_container = ft.Container(
@@ -721,7 +870,7 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
                     [
                         header_container,
                         chat_container,
-                        input_container
+                        input_container,
                     ],
                     expand=True,
                     spacing=0,

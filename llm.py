@@ -1,8 +1,9 @@
 import subprocess
 import re
 import ollama
-
+import os
 # Перевірка, чи встановлена програма Ollama
+
 def is_ollama_installed():
     try:
         # Перевіряємо наявність команди ollama
@@ -17,7 +18,7 @@ def get_models():
         result = subprocess.run(['ollama', 'list'], stdout=subprocess.PIPE, text=True)
         lines = result.stdout.strip().split('\n')
         models = [line.split()[0] for line in lines[1:] if line.strip()]
-        return []
+        return models
     except Exception as e:
         return []
 
@@ -42,24 +43,29 @@ def call_llm(text, context, llm_model, chain):
     }
 
     # check if image is added
-    img_pattern = r"!img:\s*(.*?)!"  # Шаблон для пошуку посилання
-    img_match = re.search(img_pattern, text)
+    img_pattern = r"!img:\s*(.*?)!"  # Шаблон для пошуку посилань
+    img_matches = re.findall(img_pattern, text)  # Знаходимо всі збіги
 
-    if img_match:
-        img_path = img_match.group(1)
-        print(img_path)
+    if img_matches:
+        img_paths = img_matches  # Список усіх знайдених шляхів до зображень
+        # Перевіряємо, чи всі файли існують
+        valid_img_paths = [path for path in img_paths if os.path.exists(path)]
+        if not valid_img_paths:
+            return "No valid image paths found", context
+
+        print("Знайдені зображення:", img_paths)
         try:
             response = ollama.chat(
                 model="llava:latest",
                 messages=[
-                    {"role": "user", "content": user_input, "images": [img_path]}
+                    {"role": "user", "content": user_input, "images": img_paths}
                 ]
             )
             img_response = response["message"]["content"]
             context += f"\nUser: {user_input}\nAI: {img_response}"
             return img_response, context
         except Exception as e:
-            img_response = "An error with image procesing"
+            img_response = "An error with image processing"
             return img_response, context
     else:
         response = chain.invoke(request_data)

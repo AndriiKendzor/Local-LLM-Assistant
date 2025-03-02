@@ -21,9 +21,7 @@ else:
 
 def main(page: ft.Page):
     global context, model_list, llm_model, stop_response, model, prompt, chain
-    context, model_list, llm_model, stop_response, model, prompt, chain = build_ui(
-        page, context, model_list, llm_model, stop_response, model, prompt, chain
-    )
+    build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain)
 
 if __name__ == "__main__":
     try:
