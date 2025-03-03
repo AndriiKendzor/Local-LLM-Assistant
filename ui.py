@@ -2,6 +2,7 @@ import flet as ft
 import time
 import pyperclip  # Бібліотека для роботи з буфером обміну
 import ctypes
+import asyncio
 from langchain_ollama import OllamaLLM
 from llm import call_llm, is_ollama_installed, get_models
 
@@ -235,18 +236,18 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
 
         return button_row_cont
 
-    # async def wait_animation(text_cont, stop_event):
-    #     while not stop_event.is_set():
-    #         for i in range(3):
-    #             if stop_event.is_set():
-    #                 break
-    #             text_cont.value += " ."
-    #             text_cont.update()
-    #             await asyncio.sleep(0.4)
-    #
-    #         text_cont.value = " "
-    #         text_cont.update()
-    #         await asyncio.sleep(0.5)
+    def wait_animation(text_cont, stop_flag):
+        symbols = ["|", "/", "-", r"\\"]
+        idx = 0
+        text_cont.value = "Generating..."
+        text_cont.update()
+        while not stop_flag["stop"]:
+            text_cont.value = f"Generating... {symbols[idx]}"
+            text_cont.update()
+            idx = (idx + 1) % len(symbols)
+            time.sleep(0.2)
+        text_cont.value = ""
+        text_cont.update()
 
 
     def create_massage(text):
@@ -298,9 +299,6 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
                 )
                 chat_column.update()
 
-            # creating llm massage
-            llm_response, context = call_llm(text, context, llm_model, chain)
-
             llm_mrkd_style = ft.MarkdownStyleSheet(
                 p_text_style=ft.TextStyle(size=16, color="white"),  # Стиль для параграфів
                 h1_text_style=ft.TextStyle(size=32, color="white", weight=ft.FontWeight.BOLD),  # Заголовок 1
@@ -343,7 +341,19 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
             )
             chat_column.update()
 
+            # Запускаємо аніміцію очікування у синхронному режимі
+            stop_flag = {"stop": False}
+            import threading
+            animation_thread = threading.Thread(target=wait_animation, args=(llm_text, stop_flag))
+            animation_thread.start()
 
+            # Викликаємо LLM
+            llm_response, new_context = call_llm(text, context, llm_model, chain)
+            context = new_context  # Оновлюємо context напряму
+
+            # Зупиняємо аніміцію після завершення виклику LLM
+            stop_flag["stop"] = True
+            animation_thread.join()  # Чекаємо завершення потоку аніміції
 
 
             printed_text = ""  # copy only printed text
@@ -535,11 +545,10 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
         # Список можливостей
         features = [
             "Chat with AI locally",
-            "Process images with !img: command",
-            "Copy responses to clipboard",
+            "Switch between multiple models",
+            "Process images with command:" + "\n" + r"  !img:C\path\to\your\image.png!",
             "Regenerate responses",
             "Save conversation history",
-            "Switch between multiple models",
         ]
 
         # Створюємо список із можливостей
