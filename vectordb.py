@@ -1,4 +1,7 @@
 import chromadb
+
+# chromadb.Client() saving data in RAM and will be deleted when program finish
+# chromadb.PersistentClient(path="chroma_folder") saving data into actual vector database
 chroma_client = chromadb.Client()
 
 collection_name = "test_collection"
@@ -14,7 +17,7 @@ documents = [
 for doc in documents:
     collection.upsert(ids=doc["id"], documents=doc["text"])
 
-query_text = "Goodbye"
+query_text = "What are you doing today"
 
 results = collection.query(
     query_texts=[query_text],

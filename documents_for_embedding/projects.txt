@@ -1,0 +1,105 @@
+12.01 - now
+Crypto project
+(	
+	✅- tor connection,
+	✅- get transaction from DeBank,
+	✅- save and check transaction,
+	✅- asynchronic work,
+	✅- send to TG,
+	- new instruction,
+)
+res: prediction of coins growth;
+
+
+20.01 - now
+AI local assistant
+(
+	✅- UI,
+	✅- model chose,
+	✅- img understanding,
+	- save chat history,
+	- add knowledge base with RAG,
+	- test on MAC,
+	- create simple web-site,
+	- create post in LinkedIn, 
+)
+res: check how many people will use this product;
+
+
+12.02
+Scrupping API with AI
+(
+	- create API logic with Flask;
+	- integrate Tor connection;
+	! watch AI scrupping project tutorial
+	- create AI scrupping based on LLM model;
+) 
+res: working API wich can be sold or used in other projects;
+
+12.02
+QCMC project
+(
+	✅ create new afilated membership functionality,
+	✅ create new VIP memberchip payment,
+	- import Google reviews,
+)
+res: new changes
+
+
+
+3.03
+Smart web chat service
+(
+	check plan
+)
+res: service wich can be sold for subscription
+
+
+?
+SimpleCode website
+(
+	- bye new domain simplecodedev.com,
+	- bye company email with @domain.com,
+	- get varification on Google,
+	- create new frontend,
+	- start adwertising campaigns, 
+)
+res: get new customers with new projects;
+
+
+?
+IP calculator
+(
+	- functionality check,
+	! watch REACT coorse;
+	- create new fron-end with REACT,
+)
+res: working ip-calculator;
+
+
+?
+AI lawyer
+(
+	- RAG based aplication;
+)
+res: service wich can be sold for subscription
+
+
+?
+Tripora trawel start up
+(
+	- inegrate Ratehawk trawel API;
+)
+res: service wich get money from procent of flight/hotel cost
+
+
+Neural network project
+(
+	- find the iteresting use case for neural network (photo/video object detection)
+)
+
+Banking scan project
+(
+	- rewie banking API
+)
+

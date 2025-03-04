@@ -1,0 +1,24 @@
+My plans for November:
+
+- 1) End of SimpleCode Dev website (< 13.11);
+
++/- 2) Start creating QCMC chat bot (< 15.11);
+
+-3) Doing Tripora start up website:
+   -create sity adding function and registration (< 12.11);
+   -import chatGPT API to create trip (< 18.11);
+   -save trips to database and create personal account (< 24.11);
+   -add some fichas and test (< 1.12);
+
+- 4) Watch the generative AI course (< 17.11): 
+    https://www.youtube.com/watch?v=zjkBMFhNj_g	
++5) Watch prompting course (< 17.11):
+    https://www.youtube.com/watch?v=_ZvnD73m40o
+- 6) Start waching React course and create some app (< 24.11):
+   - https://www.youtube.com/watch?v=tfn-59fbNMQ&list=PLDyJYA6aTY1lpbNh66kFpF62QpJyzliT2
+   - https://www.youtube.com/watch?v=c-QsfbznSXI
+
+- 7) Wath and search info about AI Chat Bbots (< 17.11):
+   - https://www.youtube.com/watch?v=SWP3k-24jT4	
+
++8) Start planning and creating prompt service (< 1.12);
