@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 import chromadb
 from openai import OpenAI
 from chromadb.utils import embedding_functions
+from PyPDF2 import PdfReader
+from docx import Document
+import pandas as pd
 
 # load .env
 load_dotenv()
@@ -30,11 +33,57 @@ def load_documents(directory_path):
     print("=== Loading documents from directory ===")
     documents = []
     for filename in os.listdir(directory_path):
+        file_path = os.path.join(directory_path, filename)
+
+        # Обробка текстових файлів (.txt)
         if filename.endswith(".txt"):
-            with open(
-                    os.path.join(directory_path, filename)
-            ) as file:
-                documents.append({"id": filename, "text": file.read()})
+            try:
+                with open(file_path, "r", encoding="utf-8") as file:
+                    documents.append({"id": filename, "text": file.read()})
+                print("✅ file name: "+filename)
+            except Exception as e:
+                print(f"Error reading TXT {filename}: {e}")
+
+        # Обробка PDF-файлів (.pdf)
+        elif filename.endswith(".pdf"):
+            try:
+                pdf_reader = PdfReader(file_path)
+                text = ""
+                for page in pdf_reader.pages:
+                    text += page.extract_text() or ""
+                documents.append({"id": filename, "text": text})
+                print("✅ file name: "+filename)
+            except Exception as e:
+                print(f"Error reading PDF {filename}: {e}")
+
+        # Обробка Word-файлів (.docx)
+        elif filename.endswith(".docx"):
+            try:
+                doc = Document(file_path)
+                text = ""
+                for para in doc.paragraphs:
+                    text += para.text + "\n"
+                documents.append({"id": filename, "text": text})
+                print("✅ file name: "+filename)
+            except Exception as e:
+                print(f"Error reading DOCX {filename}: {e}")
+
+        # Обробка Excel-файлів (.xlsx)
+        # elif filename.endswith(".xlsx"):
+        #     try:
+        #         # Читаємо всі листи Excel-файлу
+        #         xls = pd.ExcelFile(file_path)
+        #         text = ""
+        #         for sheet_name in xls.sheet_names:
+        #             df = pd.read_excel(file_path, sheet_name=sheet_name)
+        #             # Перетворюємо DataFrame у рядок
+        #             text += f"Sheet: {sheet_name}\n{df.to_string()}\n\n"
+        #         documents.append({"id": filename, "text": text})
+        #         print("✅ file name: "+filename)
+        #         print(text)
+        #     except Exception as e:
+        #         print(f"Error reading XLSX {filename}: {e}")
+
     return documents
 
 
@@ -95,12 +144,12 @@ def generate_response(question, relevant_chunk):
     prompt = (
             "You are an assistant for question-answering tasks. Use the following pieces of "
             "retrieved context to answer the question. If you don't know the answer, say that you"
-            "don't know. Use three sentences maximum and keep the answer concise."
+            "don't know."
             "\n\nContext:\n" + context + "\n\nQuestion:\n\n" + question
     )
 
     resource = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": question},
@@ -111,7 +160,7 @@ def generate_response(question, relevant_chunk):
     return answer
 
 
-question = "When I wanted to ask Rostik about trading service?"
+question = "Яку оцінку отримав учень з student id 62942 та скільки пунктів він набрав?"
 relevant_chunks = query_documents(question)
 answer = generate_response(question, relevant_chunks)
 

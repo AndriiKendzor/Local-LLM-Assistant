@@ -17,7 +17,7 @@ documents = [
 for doc in documents:
     collection.upsert(ids=doc["id"], documents=doc["text"])
 
-query_text = "What are you doing today"
+query_text = "Hello world!"
 
 results = collection.query(
     query_texts=[query_text],
