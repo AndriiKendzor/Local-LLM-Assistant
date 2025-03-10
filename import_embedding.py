@@ -18,7 +18,7 @@ openai_ef = embedding_functions.OpenAIEmbeddingFunction(
 
 # creating chromadb
 chroma_client = chromadb.PersistentClient(path="chroma_folder")
-collection_name = "document_test_collection"
+collection_name = "document_test_collection2"
 # collection it is like table in sql
 collection = chroma_client.get_or_create_collection(
     name=collection_name, embedding_function=openai_ef
@@ -26,8 +26,9 @@ collection = chroma_client.get_or_create_collection(
 
 # import LLM to chat
 client = OpenAI(api_key=openai_key)
+model="gpt-4o-mini"
 
-
+# ***functions***
 # load documents
 def load_documents(directory_path):
     print("=== Loading documents from directory ===")
@@ -50,7 +51,7 @@ def load_documents(directory_path):
                 pdf_reader = PdfReader(file_path)
                 text = ""
                 for page in pdf_reader.pages:
-                    text += page.extract_text() or ""
+                    text += page.extract_text().strip() or ""
                 documents.append({"id": filename, "text": text})
                 print("✅ file name: "+filename)
             except Exception as e:
@@ -89,7 +90,7 @@ def load_documents(directory_path):
 
 # eg: text = "abcdefghijklmno", chunk_size = 5, chunk_overlap = 2
 # 1) abcde, 2) defgh, 3) ghijk
-def split_text(text, chunk_size=1000, chunk_overlap=20):
+def split_text(text, chunk_size=1500, chunk_overlap=100):
     chunks = []
     start = 0
     while start < len(text):
@@ -99,6 +100,36 @@ def split_text(text, chunk_size=1000, chunk_overlap=20):
     return chunks
 
 
+# generate embeddings
+def get_openai_embedding(text):
+    response = client.embeddings.create(input=text, model="text-embedding-3-small")
+    embedding = response.data[0].embedding
+    return embedding
+
+
+# Function to query documents
+def query_documents(question, n_results=5):
+    results = collection.query(query_texts=question, n_results=n_results)
+    relevant_chunks = [doc for sublist in results["documents"] for doc in sublist]
+    print("=== Returning relevant chunks ===")
+    return relevant_chunks
+
+
+# Function to generate responce based on documents
+def generate_response(question, prompt, model):
+    resource = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": question},
+        ],
+    )
+
+    answer = resource.choices[0].message
+    return answer
+
+
+# ***load code***
 directory_path = "./documents_for_embedding"
 documents = load_documents(directory_path)
 
@@ -108,15 +139,6 @@ for doc in documents:
     print("=== Splitting docs into chunks ===")
     for i, chunk in enumerate(chunks):
         chunked_documents.append({"id": f"{doc['id']}_chunk{i + 1}", "text": chunk})
-
-
-# generate embeddings
-def get_openai_embedding(text):
-    response = client.embeddings.create(input=text, model="text-embedding-3-small")
-    embedding = response.data[0].embedding
-    print("=== Generating embeddings ===")
-    return embedding
-
 
 for doc in chunked_documents:
     print("=== Generating embeddings ===")
@@ -129,39 +151,20 @@ for doc in chunked_documents:
         ids=[doc["id"]], documents=[doc["text"]], embeddings=[doc["embedding"]]
     )
 
+# original question
+question = "Hello! What is the plan of my dyplom work?"
+# generation hypothetical answer to find more relevant chunks
+hypothetical_answer = generate_response(question, "Just answer the question", model)
+joined_query = f"{question} {hypothetical_answer}"
+# looking for the relevant information
+relevant_chunks = query_documents(joined_query)
+context = "\n\n".join(relevant_chunks)
+prompt = (
+        "You are an assistant for question-answering tasks. Use the following pieces of "
+        "retrieved context to answer the question. If you don't know the answer, say that you"
+        "don't know."
+        "\n\nContext:\n" + context + "\n\nQuestion:\n\n" + question
+)
 
-# Function to query documents
-def query_documents(question, n_results=2):
-    results = collection.query(query_texts=question, n_results=n_results)
-    relevant_chunks = [doc for sublist in results["documents"] for doc in sublist]
-    print("=== Returning relevant chunks ===")
-    return relevant_chunks
-
-
-# Function to generate responce based on documents
-def generate_response(question, relevant_chunk):
-    context = "\n\n".join(relevant_chunk)
-    prompt = (
-            "You are an assistant for question-answering tasks. Use the following pieces of "
-            "retrieved context to answer the question. If you don't know the answer, say that you"
-            "don't know."
-            "\n\nContext:\n" + context + "\n\nQuestion:\n\n" + question
-    )
-
-    resource = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": question},
-        ],
-    )
-
-    answer = resource.choices[0].message
-    return answer
-
-
-question = "Яку оцінку отримав учень з student id 62942 та скільки пунктів він набрав?"
-relevant_chunks = query_documents(question)
-answer = generate_response(question, relevant_chunks)
-
+answer = generate_response(question, prompt, model)
 print(answer)

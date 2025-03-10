@@ -70,6 +70,7 @@ def call_llm(text, context, llm_model, chain):
     else:
         response = chain.invoke(request_data)
         context += f"\nUser: {user_input}\nAI: {response}"
+        print(context)
         return response, context
 
 
