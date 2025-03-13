@@ -1,32 +1,16 @@
 import os
-from dotenv import load_dotenv
+import ollama
 import chromadb
-from openai import OpenAI
 from chromadb.utils import embedding_functions
 from PyPDF2 import PdfReader
 from docx import Document
 import pandas as pd
 
-# load .env
-load_dotenv()
-openai_key = os.getenv("OPENAI_API_KEY")
 
-# chosing embedding model
-openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=openai_key, model_name="text-embedding-3-small"
-)
-
-# creating chromadb
+# create collection
+collection_name = "document_test_collection7"
 chroma_client = chromadb.PersistentClient(path="chroma_folder")
-collection_name = "document_test_collection2"
-# collection it is like table in sql
-collection = chroma_client.get_or_create_collection(
-    name=collection_name, embedding_function=openai_ef
-)
-
-# import LLM to chat
-client = OpenAI(api_key=openai_key)
-model="gpt-4o-mini"
+collection = chroma_client.get_or_create_collection(name=collection_name)
 
 # ***functions***
 # load documents
@@ -101,32 +85,31 @@ def split_text(text, chunk_size=1500, chunk_overlap=100):
 
 
 # generate embeddings
-def get_openai_embedding(text):
-    response = client.embeddings.create(input=text, model="text-embedding-3-small")
-    embedding = response.data[0].embedding
+def get_embedding(text):
+    response = ollama.embeddings(model='nomic-embed-text', prompt=text)
+    embedding = response["embedding"]
     return embedding
 
 
 # Function to query documents
 def query_documents(question, n_results=5):
-    results = collection.query(query_texts=question, n_results=n_results)
+    test_query_embedding = ollama.embeddings(model="nomic-embed-text", prompt=question)["embedding"]
+    results = collection.query(query_embeddings=[test_query_embedding], n_results=n_results)
     relevant_chunks = [doc for sublist in results["documents"] for doc in sublist]
     print("=== Returning relevant chunks ===")
     return relevant_chunks
 
 
 # Function to generate responce based on documents
-def generate_response(question, prompt, model):
-    resource = client.chat.completions.create(
-        model=model,
+def generate_response(question, prompt):
+    response = ollama.chat(
+        model="llama3.2:latest",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": question},
-        ],
+        ]
     )
-
-    answer = resource.choices[0].message
-    return answer
+    return response["message"]["content"]
 
 
 # ***load code***
@@ -142,29 +125,29 @@ for doc in documents:
 
 for doc in chunked_documents:
     print("=== Generating embeddings ===")
-    doc["embedding"] = get_openai_embedding(doc["text"])
+    doc["embedding"] = get_embedding(doc["text"])
 
 # inserting embeddings into vector database
 for doc in chunked_documents:
     print("=== Inserting chunks into vector db ===")
     collection.upsert(
-        ids=[doc["id"]], documents=[doc["text"]], embeddings=[doc["embedding"]]
+        ids=[doc["id"]],
+        documents=[doc["text"]],
+        embeddings=[doc["embedding"]]
     )
-
 # original question
-question = "Hello! What is the plan of my dyplom work?"
+question = "Hello! What is this book about?"
 # generation hypothetical answer to find more relevant chunks
-hypothetical_answer = generate_response(question, "Just answer the question", model)
-joined_query = f"{question} {hypothetical_answer}"
+# hypothetical_answer = generate_response(question, "Just give the hypothetical answer the question without any context")
+# joined_query = f"{question} {hypothetical_answer}"
 # looking for the relevant information
-relevant_chunks = query_documents(joined_query)
+relevant_chunks = query_documents(question)
 context = "\n\n".join(relevant_chunks)
 prompt = (
         "You are an assistant for question-answering tasks. Use the following pieces of "
         "retrieved context to answer the question. If you don't know the answer, say that you"
         "don't know."
-        "\n\nContext:\n" + context + "\n\nQuestion:\n\n" + question
+        "\n\nContext:\n" + context
 )
-
-answer = generate_response(question, prompt, model)
+answer = generate_response(question, prompt)
 print(answer)

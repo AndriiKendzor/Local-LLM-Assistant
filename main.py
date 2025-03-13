@@ -8,6 +8,7 @@ context = ""
 model_list = get_models()
 llm_model = model_list[0] if model_list else None  # Вибираємо першу модель, якщо є
 stop_response = False
+knowlage_base_added = True
 
 # Ініціалізація LLM
 if llm_model:
@@ -20,8 +21,8 @@ else:
     chain = None
 
 def main(page: ft.Page):
-    global context, model_list, llm_model, stop_response, model, prompt, chain
-    build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain)
+    global context, model_list, llm_model, stop_response, model, prompt, chain, knowlage_base_added
+    build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain, knowlage_base_added)
 
 if __name__ == "__main__":
     try:

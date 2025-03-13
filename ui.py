@@ -6,7 +6,7 @@ import asyncio
 from langchain_ollama import OllamaLLM
 from llm import call_llm, is_ollama_installed, get_models
 
-def build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain):
+def build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain, knowlage_base_added):
     # check if ollama is installed
     ollama_installed = is_ollama_installed()
     available_models = get_models()
@@ -348,8 +348,11 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
             animation_thread.start()
 
             # Викликаємо LLM
-            llm_response, new_context = call_llm(text, context, llm_model, chain)
-            context = new_context  # Оновлюємо context напряму
+            try:
+                llm_response, new_context = call_llm(text, context, llm_model, chain, knowlage_base_added)
+                context = new_context  # Оновлюємо context напряму
+            except Exception as e:
+                llm_response = f"Some error while calling llm: \n{e}"
 
             # Зупиняємо аніміцію після завершення виклику LLM
             stop_flag["stop"] = True
@@ -444,7 +447,9 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
         text_style=ft.TextStyle(
             size=16,
             color=ft.colors.GREY_500,  # Сірий колір тексту
+            overflow=ft.TextOverflow.ELLIPSIS,
         ),
+
     )
 
     dropdown_container = ft.Container(
