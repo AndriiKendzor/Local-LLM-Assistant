@@ -39,25 +39,27 @@ Question: {question}
 Answer:
 """
 
-def call_llm(text, context, llm_model, chain, knowlage_base_added):
+def call_llm(text, context, llm_model, chain, knowlage_base_added, collection):
     print(f"Активна модель: {llm_model}")
     user_input = text
 
     # check if knowlage base added
     if knowlage_base_added:
-        relevant_chunks = query_documents(user_input)
+        relevant_chunks = query_documents(user_input, collection)
         relevant_chunks = "\n\n".join(relevant_chunks)
         request_data = {
             "context": context,
             "relevant_chunks": relevant_chunks,
             "question": user_input
         }
+        print("knowlage_base_added YES")
     else:
         request_data = {
             "context": context,
             "relevant_chunks": "No knowledge base added",
             "question": user_input
         }
+        print("knowlage_base_added NO")
     # check if image is added
     img_pattern = r"!img:\s*(.*?)!"  # Шаблон для пошуку посилань
     img_matches = re.findall(img_pattern, user_input)  # Знаходимо всі збіги

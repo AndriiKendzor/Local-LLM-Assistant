@@ -2,11 +2,14 @@ import flet as ft
 import time
 import pyperclip  # Бібліотека для роботи з буфером обміну
 import ctypes
-import asyncio
+import threading
+
 from langchain_ollama import OllamaLLM
 from llm import call_llm, is_ollama_installed, get_models
+from import_embedding import load_documents, create_chromadb_collection, split_text, get_embedding
 
-def build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain, knowlage_base_added):
+
+def build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain, knowlage_base_added, chat_id, collection):
     # check if ollama is installed
     ollama_installed = is_ollama_installed()
     available_models = get_models()
@@ -236,13 +239,13 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
 
         return button_row_cont
 
-    def wait_animation(text_cont, stop_flag):
+    def wait_animation(text_cont, stop_flag, word):
         symbols = ["|", "/", "-", r"\\"]
         idx = 0
-        text_cont.value = "Generating..."
+        text_cont.value = f"{word}..."
         text_cont.update()
         while not stop_flag["stop"]:
-            text_cont.value = f"Generating... {symbols[idx]}"
+            text_cont.value = f"{word}... {symbols[idx]}"
             text_cont.update()
             idx = (idx + 1) % len(symbols)
             time.sleep(0.2)
@@ -343,13 +346,12 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
 
             # Запускаємо аніміцію очікування у синхронному режимі
             stop_flag = {"stop": False}
-            import threading
-            animation_thread = threading.Thread(target=wait_animation, args=(llm_text, stop_flag))
+            animation_thread = threading.Thread(target=wait_animation, args=(llm_text, stop_flag, "Generating"))
             animation_thread.start()
 
             # Викликаємо LLM
             try:
-                llm_response, new_context = call_llm(text, context, llm_model, chain, knowlage_base_added)
+                llm_response, new_context = call_llm(text, context, llm_model, chain, knowlage_base_added, collection)
                 context = new_context  # Оновлюємо context напряму
             except Exception as e:
                 llm_response = f"Some error while calling llm: \n{e}"
@@ -474,6 +476,183 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
         alignment=ft.alignment.center,
         padding=ft.Padding(0, 5, 0, 5),
     )
+
+    # creating reg application
+    def create_rag():
+        # Ініціалізація змінної для шляху до папки
+        directory_path = [None]  # Використовуємо список, щоб змінювати значення всередині вкладених функцій
+
+        # Функція для вибору папки
+        def pick_folder(e):
+            file_picker.get_directory_path()
+
+        # Функція для обробки результату вибору папки
+        def on_folder_picked(e: ft.FilePickerResultEvent):
+            nonlocal knowlage_base_added
+            nonlocal chat_id
+
+            # if knowlage_base_added:
+            #
+            # else:
+            #
+            if e.path:
+                # change global wariable to get AI know that KB added
+                knowlage_base_added = True
+                # show path
+                directory_path[0] = e.path
+                files_list.controls.append(
+                    ft.Text(
+                        spans=[
+                            ft.TextSpan("Folder:", style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=16)),
+                            ft.TextSpan(f"\n{directory_path[0]}", style=ft.TextStyle(weight=ft.FontWeight.NORMAL, size=16)),
+                        ]
+                    )
+                )
+                page.update()
+
+                # Start scanning documents
+                dialog.actions.remove(chose_folder_button)
+                page.update()
+                # Запускаємо аніміцію очікування у синхронному режимі
+                stop_flag = {"stop": False}
+                animation_thread = threading.Thread(target=wait_animation, args=(waiting_text, stop_flag, "Scanning"))
+                animation_thread.start()
+
+                # Викликаємо LLM
+                try:
+                    scan_documents(chat_id, directory_path[0])
+                    new_style = ft.ButtonStyle(
+                        padding=5,
+                        alignment=ft.alignment.center,
+                        side=ft.BorderSide(1, ft.colors.GREEN),
+                        color=ft.colors.GREY_500,
+                        text_style=ft.TextStyle(size=16),
+                        shape=ft.RoundedRectangleBorder(radius=20),
+                    )
+                except Exception as e:
+                    files_list.controls.append(ft.Text(f"Some error while scanning: {e}", size=16, color=ft.colors.RED))
+                    new_style = ft.ButtonStyle(
+                        padding=5,
+                        alignment=ft.alignment.center,
+                        side=ft.BorderSide(1, ft.colors.RED),
+                        color=ft.colors.GREY_500,
+                        text_style=ft.TextStyle(size=16),
+                        shape=ft.RoundedRectangleBorder(radius=20),
+                    )
+
+                # Зупиняємо аніміцію після завершення виклику LLM
+                stop_flag["stop"] = True
+                animation_thread.join()  # Чекаємо завершення потоку аніміції
+
+                add_knowledge_base.style = new_style
+                dialog.actions.append(close_button)
+                page.update()
+
+                return knowlage_base_added
+
+        def scan_documents(chat_id, path):
+            # create collection
+            nonlocal collection
+            collection = create_chromadb_collection(chat_id)
+            # load documents from directory
+            documents = load_documents(path, files_list, page)
+
+            chunked_documents = []
+            for doc in documents:
+                chunks = split_text(doc["text"])
+                print("=== Splitting docs into chunks ===")
+                for i, chunk in enumerate(chunks):
+                    chunked_documents.append({"id": f"{doc['id']}_chunk{i + 1}", "text": chunk})
+
+            for doc in chunked_documents:
+                print("=== Generating embeddings ===")
+                doc["embedding"] = get_embedding(doc["text"])
+
+            # inserting embeddings into vector database
+            for doc in chunked_documents:
+                print("=== Inserting chunks into vector db ===")
+                collection.upsert(
+                    ids=[doc["id"]],
+                    documents=[doc["text"]],
+                    embeddings=[doc["embedding"]]
+                )
+
+            return collection
+
+
+        files_list = ft.Column(
+            controls=[],
+            spacing=10,
+            alignment=ft.MainAxisAlignment.START,
+            horizontal_alignment=ft.CrossAxisAlignment.START,
+            scroll=ft.ScrollMode.AUTO,
+        )
+
+        # Ініціалізація FilePicker
+        file_picker = ft.FilePicker(on_result=on_folder_picked)
+        page.overlay.append(file_picker) # Додаємо FilePicker до сторінки
+
+        # some controls
+        waiting_text = ft.Text(
+            "",
+            color=ft.colors.WHITE,
+            size=16,
+            weight=ft.FontWeight.NORMAL,
+        )
+        chose_folder_button = ft.ElevatedButton(
+            text="Chose folder",
+            icon=ft.icons.FOLDER_OPEN,
+            on_click=pick_folder,
+            style=ft.ButtonStyle(
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=20),
+                color=ft.colors.WHITE
+            ),
+        )
+
+        def close_dialog(e):
+            dialog.open = False
+            page.update()
+
+        close_button = ft.ElevatedButton(
+            text="Redy",
+            on_click=close_dialog,
+            style=ft.ButtonStyle(
+                padding=10,
+                shape=ft.RoundedRectangleBorder(radius=20),
+                color=ft.colors.WHITE
+            ),
+        )
+        # Створюємо діалогове вікно
+        dialog = ft.AlertDialog(
+            title=ft.Text(
+                "RAG Document Scanner",
+                size=20,
+                weight=ft.FontWeight.BOLD,
+                color=ft.colors.WHITE,
+                text_align=ft.TextAlign.CENTER,
+            ),
+            content=ft.Container(
+                content=files_list,
+                padding=10,
+                width=400,
+                height=300,
+            ),
+            actions=[
+                chose_folder_button,
+                waiting_text
+            ],
+            actions_alignment=ft.MainAxisAlignment.CENTER,
+            bgcolor=ft.colors.GREY_900,
+        )
+
+
+        # Відкриваємо діалогове вікно
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
+
     add_knowledge_base = ft.TextButton(
         icon=ft.icons.INSERT_DRIVE_FILE,
         icon_color=ft.colors.GREY_500,  # Іконка білого кольору
@@ -490,8 +669,9 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
             ),
             shape=ft.RoundedRectangleBorder(radius=20),  # Закруглені краї
         ),
-        on_click=lambda e: print("Knowledge base clicked"),
+        on_click=lambda e: create_rag(),
     )
+
 
     header_row = ft.Row(
         controls=[
@@ -518,22 +698,6 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
         width=800,
         alignment=ft.MainAxisAlignment.START,
     )
-
-    # chat_column.controls.append(
-    #     ft.Container(
-    #         content=ft.Text(
-    #             f"Use !img: C:/Example/path/img.png! to add image.",
-    #             color=ft.colors.GREY_500,
-    #             size=18,
-    #             no_wrap=True,
-    #             overflow=ft.TextOverflow.ELLIPSIS,
-    #         ),
-    #         expand=True,
-    #         bgcolor="transparent",
-    #         alignment=ft.alignment.center,
-    #     )
-    # )
-
     chat_column.scroll = ft.ScrollMode.AUTO
 
     chat_container = ft.Container(
@@ -894,4 +1058,4 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
             spacing=10,
         )
     )
-    return context, model_list, llm_model, stop_response, model, prompt, chain
+    return context, model_list, llm_model, stop_response, model, prompt, chain, knowlage_base_added, chat_id, collection
