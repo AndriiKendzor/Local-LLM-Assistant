@@ -8,6 +8,8 @@ from langchain_ollama import OllamaLLM
 from llm import call_llm, is_ollama_installed, get_models
 from import_embedding import load_documents, create_chromadb_collection, split_text, get_embedding
 
+dialog = None
+
 
 def build_ui(page, context, model_list, llm_model, stop_response, model, prompt, chain, knowlage_base_added, chat_id, collection):
     # check if ollama is installed
@@ -479,6 +481,7 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
 
     # creating reg application
     def create_rag():
+        global dialog
         # Ініціалізація змінної для шляху до папки
         directory_path = [None]  # Використовуємо список, щоб змінювати значення всередині вкладених функцій
 
@@ -491,15 +494,12 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
             nonlocal knowlage_base_added
             nonlocal chat_id
 
-            # if knowlage_base_added:
-            #
-            # else:
-            #
             if e.path:
                 # change global wariable to get AI know that KB added
                 knowlage_base_added = True
                 # show path
                 directory_path[0] = e.path
+                files_list.controls.clear()
                 files_list.controls.append(
                     ft.Text(
                         spans=[
@@ -511,7 +511,8 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
                 page.update()
 
                 # Start scanning documents
-                dialog.actions.remove(chose_folder_button)
+                dialog.actions.clear()
+                dialog.actions.append(waiting_text)
                 page.update()
                 # Запускаємо аніміцію очікування у синхронному режимі
                 stop_flag = {"stop": False}
@@ -529,8 +530,11 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
                         text_style=ft.TextStyle(size=16),
                         shape=ft.RoundedRectangleBorder(radius=20),
                     )
+                    dialog.actions.append(close_button)
+                    dialog.actions.append(chose_folder_button)
+                    dialog.actions.append(clean_button)
                 except Exception as e:
-                    files_list.controls.append(ft.Text(f"Some error while scanning: {e}", size=16, color=ft.colors.RED))
+                    files_list.controls.append(ft.Text(f"Some error while scanning: {e}\nTry again.", size=16, color=ft.colors.RED))
                     new_style = ft.ButtonStyle(
                         padding=5,
                         alignment=ft.alignment.center,
@@ -539,13 +543,13 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
                         text_style=ft.TextStyle(size=16),
                         shape=ft.RoundedRectangleBorder(radius=20),
                     )
+                    dialog.actions.append(chose_folder_button)
 
                 # Зупиняємо аніміцію після завершення виклику LLM
                 stop_flag["stop"] = True
                 animation_thread.join()  # Чекаємо завершення потоку аніміції
 
                 add_knowledge_base.style = new_style
-                dialog.actions.append(close_button)
                 page.update()
 
                 return knowlage_base_added
@@ -623,32 +627,61 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
                 color=ft.colors.WHITE
             ),
         )
-        # Створюємо діалогове вікно
-        dialog = ft.AlertDialog(
-            title=ft.Text(
-                "RAG Document Scanner",
-                size=20,
-                weight=ft.FontWeight.BOLD,
-                color=ft.colors.WHITE,
-                text_align=ft.TextAlign.CENTER,
-            ),
-            content=ft.Container(
-                content=files_list,
+
+        def clean_kb(e):
+            nonlocal knowlage_base_added
+            global dialog
+            close_dialog(e)
+            new_style = ft.ButtonStyle(
+                padding=5,
+                alignment=ft.alignment.center,
+                side=ft.BorderSide(1, ft.colors.GREY_500),
+                color=ft.colors.GREY_500,
+                text_style=ft.TextStyle(size=16),
+                shape=ft.RoundedRectangleBorder(radius=20),
+            )
+            add_knowledge_base.style = new_style
+            page.update()
+            knowlage_base_added = False
+            dialog = None
+            return knowlage_base_added, dialog
+
+        clean_button = ft.ElevatedButton(
+            text="Clean KB",
+            on_click=clean_kb,
+            style=ft.ButtonStyle(
                 padding=10,
-                width=400,
-                height=300,
+                shape=ft.RoundedRectangleBorder(radius=20),
+                color=ft.colors.WHITE
             ),
-            actions=[
-                chose_folder_button,
-                waiting_text
-            ],
-            actions_alignment=ft.MainAxisAlignment.CENTER,
-            bgcolor=ft.colors.GREY_900,
         )
 
+        if dialog is None:
+            # Створюємо діалогове вікно
+            dialog = ft.AlertDialog(
+                title=ft.Text(
+                    "RAG Document Scanner",
+                    size=20,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.colors.WHITE,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+                content=ft.Container(
+                    content=files_list,
+                    padding=10,
+                    width=400,
+                    height=300,
+                ),
+                actions=[
+                    chose_folder_button,
+                    waiting_text
+                ],
+                actions_alignment=ft.MainAxisAlignment.CENTER,
+                bgcolor=ft.colors.GREY_900,
+            )
+            page.dialog = dialog
 
         # Відкриваємо діалогове вікно
-        page.dialog = dialog
         dialog.open = True
         page.update()
 
@@ -716,7 +749,7 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
             "Chat with AI locally",
             "Switch between multiple models",
             "Process images with command:" + "\n" + r"  !img:C\path\to\your\image.png!",
-            "Regenerate responses",
+            "Scan your documents using Knowledge Base",
             "Save conversation history",
         ]
 
