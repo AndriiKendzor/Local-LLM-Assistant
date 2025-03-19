@@ -39,56 +39,66 @@ Question: {question}
 Answer:
 """
 
-def call_llm(text, context, llm_model, chain, knowlage_base_added, collection):
+
+def call_llm(text, context, llm_model, chain, knowlage_base_added, collection, title):
     print(f"Активна модель: {llm_model}")
     user_input = text
 
-    # check if knowlage base added
-    if knowlage_base_added:
-        relevant_chunks = query_documents(user_input, collection)
-        relevant_chunks = "\n\n".join(relevant_chunks)
-        request_data = {
-            "context": context,
-            "relevant_chunks": relevant_chunks,
-            "question": user_input
-        }
-        print("knowlage_base_added YES")
-    else:
+    if title:
         request_data = {
             "context": context,
             "relevant_chunks": "No knowledge base added",
             "question": user_input
         }
-        print("knowlage_base_added NO")
-    # check if image is added
-    img_pattern = r"!img:\s*(.*?)!"  # Шаблон для пошуку посилань
-    img_matches = re.findall(img_pattern, user_input)  # Знаходимо всі збіги
-
-    if img_matches:
-        img_paths = img_matches  # Список усіх знайдених шляхів до зображень
-        # Перевіряємо, чи всі файли існують
-        valid_img_paths = [path for path in img_paths if os.path.exists(path)]
-        if not valid_img_paths:
-            return "No valid image paths found", context
-
-        print("Знайдені зображення:", img_paths)
-        try:
-            response = ollama.chat(
-                model="llava:latest",
-                messages=[
-                    {"role": "user", "content": user_input, "images": img_paths}
-                ]
-            )
-            img_response = response["message"]["content"]
-            context += f"\nUser: {user_input}\nAI: {img_response}"
-            return img_response, context
-        except Exception as e:
-            img_response = "An error with image processing"
-            return img_response, context
-    else:
         response = chain.invoke(request_data)
-        context += f"\nUser: {user_input}\nAI: {response}"
-        return response, context
+        return response
+    else:
+        # check if knowlage base added
+        if knowlage_base_added:
+            relevant_chunks = query_documents(user_input, collection)
+            relevant_chunks = "\n\n".join(relevant_chunks)
+            request_data = {
+                "context": context,
+                "relevant_chunks": relevant_chunks,
+                "question": user_input
+            }
+            print("knowlage_base_added YES")
+        else:
+            request_data = {
+                "context": context,
+                "relevant_chunks": "No knowledge base added",
+                "question": user_input
+            }
+            print("knowlage_base_added NO")
+        # check if image is added
+        img_pattern = r"!img:\s*(.*?)!"  # Шаблон для пошуку посилань
+        img_matches = re.findall(img_pattern, user_input)  # Знаходимо всі збіги
+
+        if img_matches:
+            img_paths = img_matches  # Список усіх знайдених шляхів до зображень
+            # Перевіряємо, чи всі файли існують
+            valid_img_paths = [path for path in img_paths if os.path.exists(path)]
+            if not valid_img_paths:
+                return "No valid image paths found", context
+
+            print("Знайдені зображення:", img_paths)
+            try:
+                response = ollama.chat(
+                    model="llava:latest",
+                    messages=[
+                        {"role": "user", "content": user_input, "images": img_paths}
+                    ]
+                )
+                img_response = response["message"]["content"]
+                context += f"\nUser: {user_input}\nAI: {img_response}"
+                return img_response, context
+            except Exception as e:
+                img_response = "An error with image processing"
+                return img_response, context
+        else:
+            response = chain.invoke(request_data)
+            context += f"\nUser: {user_input}\nAI: {response}"
+            return response, context
 
 
 # def create_file_with_timestamp(info):

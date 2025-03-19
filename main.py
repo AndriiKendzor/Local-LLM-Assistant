@@ -3,6 +3,7 @@ from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 from llm import get_models, template
 from ui import build_ui
+import random
 
 context = ""
 model_list = get_models()
@@ -10,7 +11,21 @@ llm_model = model_list[0] if model_list else None  # Вибираємо перш
 stop_response = False
 knowlage_base_added = False
 collection = None
-chat_id = 26
+
+
+def generate_random_code():
+    i = 0
+    code = ""
+    while (i <= 5):
+        random_number = random.randint(0, 9)
+        code += str(random_number)
+        i += 1
+
+    return code
+
+
+chat_id = generate_random_code()
+print(chat_id)
 
 # Ініціалізація LLM
 if llm_model:

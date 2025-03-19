@@ -9,7 +9,6 @@ import pandas as pd
 
 
 # create collection
-
 def create_chromadb_collection(chat_id):
     collection_name = f"document_test_collection{chat_id}"
     chroma_client = chromadb.PersistentClient(path="chroma_folder")

@@ -3,7 +3,7 @@ import time
 import pyperclip  # Бібліотека для роботи з буфером обміну
 import ctypes
 import threading
-
+from db import save_conversation
 from langchain_ollama import OllamaLLM
 from llm import call_llm, is_ollama_installed, get_models
 from import_embedding import load_documents, create_chromadb_collection, split_text, get_embedding
@@ -353,7 +353,7 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
 
             # Викликаємо LLM
             try:
-                llm_response, new_context = call_llm(text, context, llm_model, chain, knowlage_base_added, collection)
+                llm_response, new_context = call_llm(text, context, llm_model, chain, knowlage_base_added, collection, False)
                 context = new_context  # Оновлюємо context напряму
             except Exception as e:
                 llm_response = f"Some error while calling llm: \n{e}"
@@ -361,6 +361,7 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
             # Зупиняємо аніміцію після завершення виклику LLM
             stop_flag["stop"] = True
             animation_thread.join()  # Чекаємо завершення потоку аніміції
+
 
 
             printed_text = ""  # copy only printed text
@@ -388,7 +389,11 @@ def build_ui(page, context, model_list, llm_model, stop_response, model, prompt,
             send_text_button.icon = ft.icons.ARROW_UPWARD
             send_text_button.update()
 
+            save_conversation(chat_id, context, knowlage_base_added, llm_model, chain, collection, llm_response, text, chat_name_container)
+
             return stop_response, context, llm_model, chain
+
+
 
     def create_history_element(title, date):
         pass
