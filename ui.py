@@ -815,7 +815,9 @@ def build_ui(page):
         features = [
             "Chat with AI locally",
             "Switch between multiple models",
-            "Process images with command:" + "\n" + r"  !img:C\path\to\your\image.png!",
+            "Process images with command:" + "\n" +
+            r"  !img:C\path\to\your\image.png!" + "\n" +
+            "  *you should use Vision model (like llava)",
             "Scan your documents using Knowledge Base",
             "Save conversation history",
         ]

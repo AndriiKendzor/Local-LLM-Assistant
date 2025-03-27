@@ -30,7 +30,6 @@ def get_models():
         return []
 
 
-
 context = ""
 model_list = get_models()
 llm_model = model_list[0] if model_list else None  # Вибираємо першу модель, якщо є

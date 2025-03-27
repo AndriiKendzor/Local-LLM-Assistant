@@ -51,7 +51,7 @@ def call_llm(text, title):
             print("Знайдені зображення:", img_paths)
             try:
                 response = ollama.chat(
-                    model="llava:latest",
+                    model=globals.llm_model,
                     messages=[
                         {"role": "user", "content": user_input, "images": img_paths}
                     ]
@@ -60,7 +60,7 @@ def call_llm(text, title):
                 globals.context += f"\nUser: {user_input}\nAI: {img_response}"
                 return img_response
             except Exception as e:
-                img_response = "An error with image processing"
+                img_response = f"An error with image processing: {e}"
                 return img_response
         else:
             response = globals.chain.invoke(request_data)
